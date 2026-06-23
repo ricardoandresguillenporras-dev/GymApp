@@ -2038,6 +2038,9 @@ const SwipeTabContainer = ({ tab, onTabChange, children }) => {
           height:"100%",
           transform: baseTranslate(tabIdx),
           willChange:"transform",
+          backfaceVisibility:"hidden",
+          WebkitBackfaceVisibility:"hidden",
+          transformStyle:"preserve-3d",
         }}
       >
         {children}
@@ -2157,6 +2160,35 @@ export default function App() {
     window.history.pushState({ screen:"tab", tab:"home", modal:null }, ""); // slot 1
   }, []);
 
+  // ── HARDWARE BACK BUTTON (Android) ──
+  // Capacitor's native shell intercepts the Android back key itself and
+  // fires a "backButton" event on the App plugin — it does NOT translate
+  // it into a DOM popstate automatically. Without this listener, Android
+  // falls back to its default behaviour of minimising the app, which is
+  // why the in-app history stack above (popstate) never even ran on a
+  // real device. We forward the native event into the same history stack
+  // so every hardware back press behaves exactly like the in-app back
+  // actions (goBack/closeModal), including the exit-confirmation sentinel.
+  useEffect(() => {
+    let remove = null;
+    let cancelled = false;
+    import("@capacitor/app")
+      .then(({ App: CapApp }) => {
+        if (cancelled) return;
+        CapApp.addListener("backButton", () => {
+          // window.history.length is always >= 2 thanks to the sentinel
+          // seed above, so back() always has somewhere safe to go —
+          // it will surface the exitConfirm modal once it hits slot 0.
+          window.history.back();
+        }).then((handle) => { remove = handle; });
+      })
+      .catch(() => { /* running in a plain browser preview — no native plugin */ });
+    return () => {
+      cancelled = true;
+      if (remove) remove.remove();
+    };
+  }, []);
+
   // Single popstate handler — restores full app state from history entry.
   // When Android back reaches the sentinel, re-push the root entry and show
   // the exit-confirmation dialog so the user can consciously close the app.
@@ -2249,9 +2281,12 @@ export default function App() {
   // and a final go-back so Android closes the app naturally.
   const confirmExit = () => {
     setModal(null);
-    // history stack at this point: [sentinel, root(re-pushed)]
-    // We need to pop back through the sentinel so Android takes over.
-    window.history.go(-2);
+    // Ask Capacitor to close the native app directly — deterministic on
+    // every Android version, unlike exhausting window.history and hoping
+    // the WebView's host activity decides to finish itself.
+    import("@capacitor/app")
+      .then(({ App: CapApp }) => CapApp.exitApp())
+      .catch(() => { window.history.go(-2); }); // browser preview fallback
   };
 
   const cancelExit = () => {
