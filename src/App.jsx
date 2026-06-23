@@ -933,7 +933,7 @@ const StartWorkoutModal = ({ routine, onConfirm, onClose }) => {
 };
 
 /* ── HOME SCREEN ── */
-const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRoutine, onOpenRoutinePicker, onOpenStartConfirm, onOpenLightbox, onGoStats }) => {
+const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRoutine, onOpenRoutinePicker, onOpenStartConfirm, onOpenLightbox, onGoStats, deletePhotoRef }) => {
   const [photos,setPhotos]=useState([]);
   const [photosLoading,setPhotosLoading]=useState(true);
   const [showCamera,setShowCamera]=useState(false);
@@ -973,10 +973,18 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
 
   const handleDeletePhoto=useCallback((photo)=>{
     setPhotos(prev=>prev.filter(p=>p.id!==photo.id));
-    setLightboxPhoto(null);
     deleteStoredPhoto(photo.id);
     fireToast("Foto eliminada");
   },[]);
+
+  // Expose this screen's photo-deletion logic to the root App, which owns
+  // the lightbox modal (modal:"lightbox") but has no direct access to the
+  // photos state living here — the root's PhotoLightbox onDelete calls
+  // deletePhotoRef.current(photo) to actually remove it.
+  useEffect(() => {
+    if (deletePhotoRef) deletePhotoRef.current = handleDeletePhoto;
+    return () => { if (deletePhotoRef) deletePhotoRef.current = null; };
+  }, [deletePhotoRef, handleDeletePhoto]);
 
   const handlePickProfilePhoto=useCallback(async (file)=>{
     setProfileUploading(true);
@@ -2152,6 +2160,9 @@ export default function App() {
   const [modal,     setModal]     = useState(null);    // null | "startConfirm" | "routinePicker" | "lightbox" | "exitConfirm"
   const [modalData, setModalData] = useState(null);
   const [activeRoutine, setActiveRoutine] = useState(null);
+  // Bridge to HomeScreen's local photo-deletion logic — see HomeScreen's
+  // deletePhotoRef effect for why this indirection exists.
+  const homeDeletePhotoRef = useRef(null);
 
   // Seed history: push a sentinel first, then the real root entry.
   // This ensures there is always an entry BEHIND the root so Android's
@@ -2322,6 +2333,7 @@ export default function App() {
       {modal==="lightbox" && modalData && (
         <PhotoLightbox photo={modalData} onClose={closeModal}
           onDelete={(photo)=>{
+            homeDeletePhotoRef.current?.(photo);
             closeModal();
           }}/>
       )}
@@ -2341,6 +2353,7 @@ export default function App() {
                 onOpenStartConfirm={()=>goExercise(todayRoutine)}
                 onChangeTodayRoutine={setTodayRoutine}
                 onGoStats={()=>goTab("stats")}
+                deletePhotoRef={homeDeletePhotoRef}
               />
             </div>
             <div style={{ width:`${TAB_W}%`, height:"100%", flexShrink:0, overflow:"hidden", display:"flex", flexDirection:"column" }}>
