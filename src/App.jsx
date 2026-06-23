@@ -81,7 +81,7 @@ const Label = ({ children, style = {} }) => (
   <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: C.t3, letterSpacing: "0.08em", textTransform: "uppercase", ...style }}>{children}</div>
 );
 const Chip = ({ children, color = C.accent, bg, style = {} }) => (
-  <div style={{ display: "inline-flex", alignItems: "center", background: bg || `${color}18`, color, borderRadius:0, padding: "3px 10px", fontSize: 11, fontWeight: 700, fontFamily: FONT, ...style }}>{children}</div>
+  <div style={{ display: "inline-flex", alignItems: "center", background: bg || `${color}18`, color, borderRadius:999, padding: "3px 10px", fontSize: 11, fontWeight: 700, fontFamily: FONT, ...style }}>{children}</div>
 );
 const Ring = ({ pct = 0, size = 44, sw = 3.5, color = C.accent, bg = C.s3, children }) => {
   const r = (size - sw) / 2;
@@ -108,7 +108,7 @@ const Toast = ({ message, show }) => (
     position:"fixed", top:72, left:"50%",
     transform:"translateX(-50%)",
     background:C.accent, color:"#fff",
-    borderRadius:0, padding:"9px 20px",
+    borderRadius:20, padding:"9px 20px",
     fontSize:13, fontWeight:700,
     zIndex:500, pointerEvents:"none",
     boxShadow:`0 8px 24px ${C.accent}50`,
@@ -158,12 +158,12 @@ const ProfileAvatar = ({ size=72, showGlow=false, photoURL, onPickPhoto, uploadi
       <div style={{ width:size, height:size, position:"relative", flexShrink:0 }}>
         {showGlow && (
           <>
-            <div style={{ position:"absolute",inset:-8,borderRadius:0,background:`radial-gradient(circle,${C.accent}28 0%,transparent 70%)`,animation:"glowRing 2.5s ease-in-out infinite",pointerEvents:"none" }} />
-            <div style={{ position:"absolute",inset:-4,borderRadius:0,border:`1.5px solid ${C.accent}35`,animation:"ripple 2.5s ease-out infinite",pointerEvents:"none" }} />
+            <div style={{ position:"absolute",inset:-8,borderRadius:"50%",background:`radial-gradient(circle,${C.accent}28 0%,transparent 70%)`,animation:"glowRing 2.5s ease-in-out infinite",pointerEvents:"none" }} />
+            <div style={{ position:"absolute",inset:-4,borderRadius:"50%",border:`1.5px solid ${C.accent}35`,animation:"ripple 2.5s ease-out infinite",pointerEvents:"none" }} />
           </>
         )}
         {/* Avatar circle */}
-        <div style={{ width:size,height:size,borderRadius:0,overflow:"hidden",background:C.pinkL,border:`2px solid ${C.accent}50`,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",boxShadow:`0 4px 20px ${C.accent}25` }}>
+        <div style={{ width:size,height:size,borderRadius:20,overflow:"hidden",background:C.pinkL,border:`2px solid ${C.accent}50`,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",boxShadow:`0 4px 20px ${C.accent}25` }}>
           {photoURL ? (
             <img src={photoURL} alt="Foto de perfil" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>
           ) : (
@@ -176,13 +176,13 @@ const ProfileAvatar = ({ size=72, showGlow=false, photoURL, onPickPhoto, uploadi
           )}
           {uploading && (
             <div style={{ position:"absolute",inset:0,background:"rgba(255,255,255,0.75)",display:"flex",alignItems:"center",justifyContent:"center" }}>
-              <div style={{ width:22,height:22,borderRadius:0,border:`2.5px solid ${C.accent}40`,borderTopColor:C.accent,animation:"spin 0.7s linear infinite" }}/>
+              <div style={{ width:22,height:22,borderRadius:"50%",border:`2.5px solid ${C.accent}40`,borderTopColor:C.accent,animation:"spin 0.7s linear infinite" }}/>
             </div>
           )}
         </div>
 
         {/* Camera badge — decorative only */}
-        <div style={{ position:"absolute",bottom:1,right:1,width:size*0.3,height:size*0.3,minWidth:24,minHeight:24,borderRadius:0,background:C.accent,border:`2px solid ${C.s1}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 2px 8px ${C.accent}50`,pointerEvents:"none",zIndex:1 }}>
+        <div style={{ position:"absolute",bottom:1,right:1,width:size*0.3,height:size*0.3,minWidth:24,minHeight:24,borderRadius:20,background:C.accent,border:`2px solid ${C.s1}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 2px 8px ${C.accent}50`,pointerEvents:"none",zIndex:1 }}>
           <svg width="55%" height="55%" viewBox="0 0 24 24" fill="none">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
             <circle cx="12" cy="13" r="3.5" stroke="#fff" strokeWidth="2.2"/>
@@ -198,7 +198,7 @@ const ProfileAvatar = ({ size=72, showGlow=false, photoURL, onPickPhoto, uploadi
             position:"absolute", inset:0,
             width:"100%", height:"100%",
             opacity:0, cursor:"pointer",
-            zIndex:2, borderRadius:0,
+            zIndex:2, borderRadius:20,
           }}
         />
       </div>
@@ -213,23 +213,23 @@ const ProfileAvatar = ({ size=72, showGlow=false, photoURL, onPickPhoto, uploadi
 /* ── TAB BAR ── */
 const TABS = [
   { id:"home", label:"Inicio", icon:(a)=>(
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <path d="M3 12L12 3L21 12V21H15V15H9V21H3V12Z" fill={a?C.accent:"none"} stroke={a?C.accent:C.t3} strokeWidth="1.8" strokeLinejoin="round"/>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M3 12L12 3L21 12V21H15V15H9V21H3V12Z" fill={a?C.accent:"none"} stroke={a?C.accent:"rgba(255,255,255,0.45)"} strokeWidth="1.8" strokeLinejoin="round"/>
     </svg>
   )},
   { id:"routines", label:"Rutinas", icon:(a)=>(
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="3" width="7" height="7" rx="2" fill={a?C.accent:"none"} stroke={a?C.accent:C.t3} strokeWidth="1.8"/>
-      <rect x="14" y="3" width="7" height="7" rx="2" fill={a?C.accent:"none"} stroke={a?C.accent:C.t3} strokeWidth="1.8"/>
-      <rect x="3" y="14" width="7" height="7" rx="2" fill={a?C.accent:"none"} stroke={a?C.accent:C.t3} strokeWidth="1.8"/>
-      <rect x="14" y="14" width="7" height="7" rx="2" fill="none" stroke={C.t3} strokeWidth="1.8" strokeDasharray={a?"0":"3 3"}/>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="7" height="7" rx="2.5" fill={a?C.accent:"none"} stroke={a?C.accent:"rgba(255,255,255,0.45)"} strokeWidth="1.8"/>
+      <rect x="14" y="3" width="7" height="7" rx="2.5" fill={a?C.accent:"none"} stroke={a?C.accent:"rgba(255,255,255,0.45)"} strokeWidth="1.8"/>
+      <rect x="3" y="14" width="7" height="7" rx="2.5" fill={a?C.accent:"none"} stroke={a?C.accent:"rgba(255,255,255,0.45)"} strokeWidth="1.8"/>
+      <rect x="14" y="14" width="7" height="7" rx="2.5" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.8" strokeDasharray={a?"0":"3 3"}/>
     </svg>
   )},
   { id:"stats", label:"Stats", icon:(a)=>(
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="13" width="4" height="8" rx="1.5" fill={a?C.accent:C.t3} opacity={a?1:0.5}/>
-      <rect x="10" y="8" width="4" height="13" rx="1.5" fill={a?C.accent:C.t3} opacity={a?1:0.5}/>
-      <rect x="17" y="3" width="4" height="18" rx="1.5" fill={a?C.accent:C.t3} opacity={a?1:0.5}/>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="13" width="4" height="8" rx="2" fill={a?C.accent:"rgba(255,255,255,0.45)"}/>
+      <rect x="10" y="8" width="4" height="13" rx="2" fill={a?C.accent:"rgba(255,255,255,0.45)"}/>
+      <rect x="17" y="3" width="4" height="18" rx="2" fill={a?C.accent:"rgba(255,255,255,0.45)"}/>
     </svg>
   )},
   /* { id:"profile", label:"Perfil", icon:(a)=>(
@@ -242,36 +242,38 @@ const TABS = [
 
 const TabBar = ({ active, onTab }) => (
   <div style={{
-    display:"flex",alignItems:"center",height:62,
-    background:"rgba(249,243,234,0.88)",
-    backdropFilter:"blur(24px) saturate(180%)",
-    WebkitBackdropFilter:"blur(24px) saturate(180%)",
-    borderTop:"0.5px solid rgba(184,147,106,0.25)",
     flexShrink:0,
-    paddingBottom:"env(safe-area-inset-bottom,0px)",
-    boxShadow:"0 -1px 0 rgba(184,147,106,0.12)",
+    padding:"0 16px",
+    paddingBottom:"calc(14px + env(safe-area-inset-bottom,0px))",
+    background:"transparent",
   }}>
-    {TABS.map(t => {
-      const isActive = active===t.id;
-      return (
-        <button key={t.id} className="pressable" onClick={()=>onTab(t.id)}
-          style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,position:"relative",background:"none",border:"none",padding:"10px 0",cursor:"pointer" }}>
-          {/* Icon — orange tint when active, muted when not */}
-          <div style={{ opacity: isActive ? 1 : 0.45, transition:"opacity 0.2s" }}>
-            {t.icon(isActive)}
-          </div>
-          {/* Orange dot indicator */}
-          <div style={{
-            width: isActive ? 4 : 0,
-            height: 4,
-            borderRadius:0,
-            background:C.accent,
-            transition:"width 0.25s cubic-bezier(.34,1.56,.64,1)",
-            boxShadow: isActive ? `0 0 6px ${C.accent}80` : "none",
-          }}/>
-        </button>
-      );
-    })}
+    <div style={{
+      display:"flex",alignItems:"center",
+      height:64,
+      background:"#22180F",
+      borderRadius:32,
+      padding:"0 10px",
+      boxShadow:"0 18px 40px rgba(45,31,15,0.35), 0 2px 8px rgba(45,31,15,0.18)",
+      border:"1px solid rgba(255,255,255,0.06)",
+    }}>
+      {TABS.map(t => {
+        const isActive = active===t.id;
+        return (
+          <button key={t.id} className="pressable" onClick={()=>onTab(t.id)}
+            style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",background:"none",border:"none",height:"100%",cursor:"pointer" }}>
+            <div style={{
+              width:44,height:44,borderRadius:22,
+              display:"flex",alignItems:"center",justifyContent:"center",
+              background: isActive ? `${C.accent}22` : "transparent",
+              transition:"background 0.25s cubic-bezier(.22,1,.36,1), transform 0.25s cubic-bezier(.34,1.56,.64,1)",
+              transform: isActive ? "scale(1)" : "scale(0.94)",
+            }}>
+              {t.icon(isActive)}
+            </div>
+          </button>
+        );
+      })}
+    </div>
   </div>
 );
 
@@ -462,7 +464,7 @@ const PhotoLightbox = ({ photo, onClose, onDelete }) => (
   <div className="anim-fadeIn" onClick={onClose}
     style={{ position:"fixed",inset:0,zIndex:400,background:"rgba(249,243,234,0.94)",backdropFilter:"blur(16px)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FONT }}>
     <div onClick={e=>e.stopPropagation()} className="anim-slideUp"
-      style={{ width:300,borderRadius:0,overflow:"hidden",boxShadow:`0 32px 80px rgba(0,0,0,0.6)` }}>
+      style={{ width:300,borderRadius:24,overflow:"hidden",boxShadow:`0 32px 80px rgba(0,0,0,0.6)` }}>
       <div style={{ height:300,position:"relative",background: photo.dataURL ? "#000" : `linear-gradient(145deg,${photo.gradA},${photo.gradB})`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden" }}>
         {photo.dataURL ? (
           <img src={photo.dataURL} alt={photo.label} style={{ position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover" }}/>
@@ -473,19 +475,19 @@ const PhotoLightbox = ({ photo, onClose, onDelete }) => (
           </svg>
         )}
         {/* Emoji badge always on top */}
-        <div style={{ position:"absolute",top:12,right:12,width:36,height:36,borderRadius:0,background:"rgba(255,255,255,0.9)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 12px rgba(0,0,0,0.2)",zIndex:1 }}></div>
+        <div style={{ position:"absolute",top:12,right:12,width:36,height:36,borderRadius:"50%",background:"rgba(255,255,255,0.9)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 12px rgba(0,0,0,0.2)",zIndex:1 }}></div>
       </div>
       <div style={{ background:C.s1,padding:"18px 20px" }}>
         <div style={{ fontSize:17,fontWeight:800,color:C.t1 }}>{photo.label}</div>
         <div style={{ fontSize:13,color:C.t2,marginTop:4 }}>{photo.date} · {photo.who}</div>
         {onDelete && (
           <button className="pressable" onClick={()=>onDelete(photo)}
-            style={{ marginTop:14,width:"100%",background:"none",border:`1.5px solid ${C.accent}33`,borderRadius:0,padding:"10px",fontSize:13,fontWeight:700,color:C.accent,cursor:"pointer",fontFamily:FONT }}>
+            style={{ marginTop:14,width:"100%",background:"none",border:`1.5px solid ${C.accent}33`,borderRadius:16,padding:"10px",fontSize:13,fontWeight:700,color:C.accent,cursor:"pointer",fontFamily:FONT }}>
             Eliminar foto
           </button>
         )}
         <button className="pressable" onClick={onClose}
-          style={{ marginTop:10,width:"100%",background:C.s2,border:"none",borderRadius:0,padding:"11px",fontSize:14,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT }}>
+          style={{ marginTop:10,width:"100%",background:C.s2,border:"none",borderRadius:16,padding:"11px",fontSize:14,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT }}>
           Cerrar
         </button>
       </div>
@@ -496,7 +498,7 @@ const PhotoLightbox = ({ photo, onClose, onDelete }) => (
 /* ── PHOTO CARD ── */
 const PhotoCard = ({ photo, onTap }) => (
   <div className="pressable anim-fadeUp" onClick={()=>onTap(photo)}
-    style={{ borderRadius:0,overflow:"hidden",cursor:"pointer",position:"relative",aspectRatio:"1/1",background:photo.dataURL?"#000":`linear-gradient(145deg,${photo.gradA},${photo.gradB})`,boxShadow:`0 3px 12px ${photo.gradA||"#C8102E"}40` }}>
+    style={{ borderRadius:24,overflow:"hidden",cursor:"pointer",position:"relative",aspectRatio:"1/1",background:photo.dataURL?"#000":`linear-gradient(145deg,${photo.gradA},${photo.gradB})`,boxShadow:`0 3px 12px ${photo.gradA||"#C8102E"}40` }}>
     {photo.dataURL ? (
       <img src={photo.dataURL} alt={photo.label} style={{ position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover" }}/>
     ) : (
@@ -507,7 +509,7 @@ const PhotoCard = ({ photo, onTap }) => (
         </svg>
       </div>
     )}
-    <div style={{ position:"absolute",top:8,left:8,width:28,height:28,borderRadius:0,background:"rgba(255,255,255,0.85)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,backdropFilter:"blur(4px)" }}></div>
+    <div style={{ position:"absolute",top:8,left:8,width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.85)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,backdropFilter:"blur(4px)" }}></div>
     <div style={{ position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.52))",padding:"18px 10px 8px" }}>
       <div style={{ fontSize:11,fontWeight:700,color:"#fff",lineHeight:1.2 }}>{photo.label}</div>
       <div style={{ fontSize:9,color:"rgba(255,255,255,0.75)",marginTop:2 }}>{photo.date}</div>
@@ -612,11 +614,11 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
 
       {/* Top bar */}
       <div style={{ position:"absolute",top:0,left:0,right:0,padding:"20px 22px",paddingTop:"calc(20px + env(safe-area-inset-top,0px))",display:"flex",justifyContent:"space-between",alignItems:"center",zIndex:10 }}>
-        <button onClick={onClose} style={{ background:"rgba(255,255,255,0.15)",border:"none",borderRadius:0,padding:"8px 16px",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:FONT,backdropFilter:"blur(8px)" }}>Cancelar</button>
-        <div style={{ fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.8)",background:"rgba(0,0,0,0.3)",borderRadius:0,padding:"5px 12px",backdropFilter:"blur(8px)" }}> Gym · Hoy</div>
+        <button onClick={onClose} style={{ background:"rgba(255,255,255,0.15)",border:"none",borderRadius:999,padding:"8px 16px",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:FONT,backdropFilter:"blur(8px)" }}>Cancelar</button>
+        <div style={{ fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.8)",background:"rgba(0,0,0,0.3)",borderRadius:999,padding:"5px 12px",backdropFilter:"blur(8px)" }}> Gym · Hoy</div>
         {/* Flip button */}
         {!captured && (
-          <button onClick={handleFlip} style={{ background:"rgba(255,255,255,0.15)",border:"none",borderRadius:0,width:38,height:38,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",backdropFilter:"blur(8px)" }}>
+          <button onClick={handleFlip} style={{ background:"rgba(255,255,255,0.15)",border:"none",borderRadius:"50%",width:38,height:38,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",backdropFilter:"blur(8px)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M20 7H4M4 7L8 3M4 7L8 11" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M4 17H20M20 17L16 13M20 17L16 21" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -627,7 +629,7 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
       </div>
 
       {/* Visor cuadrado */}
-      <div style={{ width:"min(88vw,340px)",height:"min(88vw,340px)",borderRadius:0,overflow:"hidden",position:"relative",border:"2px solid rgba(255,255,255,0.18)",boxShadow:`0 0 60px rgba(0,151,167,0.45)` }}>
+      <div style={{ width:"min(88vw,340px)",height:"min(88vw,340px)",borderRadius:24,overflow:"hidden",position:"relative",border:"2px solid rgba(255,255,255,0.18)",boxShadow:`0 0 60px rgba(0,151,167,0.45)` }}>
         {/* Video live */}
         <video
           ref={videoRef}
@@ -639,7 +641,7 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
         {/* Loader mientras abre cámara */}
         {!ready && !captured && !camError && (
           <div style={{ position:"absolute",inset:0,background:"#F9F3EA",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14 }}>
-            <div style={{ width:40,height:40,borderRadius:0,border:`3px solid ${C.accent}`,borderTopColor:"transparent",animation:"spin 0.8s linear infinite" }}/>
+            <div style={{ width:40,height:40,borderRadius:"50%",border:`3px solid ${C.accent}`,borderTopColor:"transparent",animation:"spin 0.8s linear infinite" }}/>
             <div style={{ fontSize:12,color:"rgba(255,255,255,0.5)",fontWeight:600 }}>Abriendo cámara…</div>
           </div>
         )}
@@ -657,7 +659,7 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
           <div style={{ position:"absolute",inset:0 }}>
             <img src={captured} alt="preview" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>
             {/* Overlay con emoji de rutina */}
-            <div style={{ position:"absolute",top:12,right:12,width:44,height:44,borderRadius:0,background:"rgba(255,255,255,0.9)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(0,0,0,0.25)" }}></div>
+            <div style={{ position:"absolute",top:12,right:12,width:44,height:44,borderRadius:"50%",background:"rgba(255,255,255,0.9)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(0,0,0,0.25)" }}></div>
             <div style={{ position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.6))",padding:"28px 16px 14px",textAlign:"center" }}>
               <div style={{ fontSize:13,fontWeight:700,color:"#fff" }}>¡Lista para guardar!</div>
             </div>
@@ -674,10 +676,10 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
         {/* Corner guides */}
         {!captured && ready && (
           <>
-            <div style={{ position:"absolute",top:12,left:12,width:22,height:22,borderTop:"2px solid rgba(255,255,255,0.7)",borderLeft:"2px solid rgba(255,255,255,0.7)",borderRadius:0,pointerEvents:"none" }}/>
-            <div style={{ position:"absolute",top:12,right:12,width:22,height:22,borderTop:"2px solid rgba(255,255,255,0.7)",borderRight:"2px solid rgba(255,255,255,0.7)",borderRadius:0,pointerEvents:"none" }}/>
-            <div style={{ position:"absolute",bottom:12,left:12,width:22,height:22,borderBottom:"2px solid rgba(255,255,255,0.7)",borderLeft:"2px solid rgba(255,255,255,0.7)",borderRadius:0,pointerEvents:"none" }}/>
-            <div style={{ position:"absolute",bottom:12,right:12,width:22,height:22,borderBottom:"2px solid rgba(255,255,255,0.7)",borderRight:"2px solid rgba(255,255,255,0.7)",borderRadius:0,pointerEvents:"none" }}/>
+            <div style={{ position:"absolute",top:12,left:12,width:22,height:22,borderTop:"2px solid rgba(255,255,255,0.7)",borderLeft:"2px solid rgba(255,255,255,0.7)",borderRadius:"50%",pointerEvents:"none" }}/>
+            <div style={{ position:"absolute",top:12,right:12,width:22,height:22,borderTop:"2px solid rgba(255,255,255,0.7)",borderRight:"2px solid rgba(255,255,255,0.7)",borderRadius:"50%",pointerEvents:"none" }}/>
+            <div style={{ position:"absolute",bottom:12,left:12,width:22,height:22,borderBottom:"2px solid rgba(255,255,255,0.7)",borderLeft:"2px solid rgba(255,255,255,0.7)",borderRadius:"50%",pointerEvents:"none" }}/>
+            <div style={{ position:"absolute",bottom:12,right:12,width:22,height:22,borderBottom:"2px solid rgba(255,255,255,0.7)",borderRight:"2px solid rgba(255,255,255,0.7)",borderRadius:"50%",pointerEvents:"none" }}/>
           </>
         )}
       </div>
@@ -685,7 +687,7 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
       {/* Bottom controls */}
       <div style={{ position:"absolute",bottom:0,left:0,right:0,padding:"28px 40px",paddingBottom:"calc(28px + env(safe-area-inset-bottom,0px))",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
         {/* Thumbnail última foto / emoji rutina */}
-        <div style={{ width:52,height:52,borderRadius:0,overflow:"hidden",border:"2px solid rgba(255,255,255,0.25)",background:"rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0 }}>
+        <div style={{ width:52,height:52,borderRadius:"50%",overflow:"hidden",border:"2px solid rgba(255,255,255,0.25)",background:"rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0 }}>
           
         </div>
 
@@ -693,20 +695,20 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
           <button
             onClick={shoot}
             disabled={countdown !== null || !ready}
-            style={{ width:78,height:78,borderRadius:0,background:"transparent",border:"4px solid rgba(255,255,255,0.5)",cursor:(countdown!==null||!ready)?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 0 2px rgba(255,255,255,0.2),0 8px 32px rgba(242,196,100,0.5)`,flexShrink:0,opacity:(countdown!==null||!ready)?0.5:1,transition:"opacity 0.2s,transform 0.1s",padding:0 }}
+            style={{ width:78,height:78,borderRadius:"50%",background:"transparent",border:"4px solid rgba(255,255,255,0.5)",cursor:(countdown!==null||!ready)?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 0 2px rgba(255,255,255,0.2),0 8px 32px rgba(242,196,100,0.5)`,flexShrink:0,opacity:(countdown!==null||!ready)?0.5:1,transition:"opacity 0.2s,transform 0.1s",padding:0 }}
           >
-            <div style={{ width:62,height:62,borderRadius:0,background: countdown!==null ? C.accent : "#fff",transition:"background 0.2s" }}/>
+            <div style={{ width:62,height:62,borderRadius:"50%",background: countdown!==null ? C.accent : "#fff",transition:"background 0.2s" }}/>
           </button>
         ) : (
           <button className="pressable" onClick={handleSave}
-            style={{ background:C.accent,border:"none",borderRadius:0,padding:"16px 32px",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:FONT,boxShadow:`0 8px 28px ${C.accent}70` }}>
+            style={{ background:C.accent,border:"none",borderRadius:16,padding:"16px 32px",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:FONT,boxShadow:`0 8px 28px ${C.accent}70` }}>
             Guardar foto
           </button>
         )}
 
         {/* Retake */}
         {captured ? (
-          <button onClick={()=>setCaptured(null)} style={{ width:52,height:52,borderRadius:0,background:"rgba(255,255,255,0.12)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",backdropFilter:"blur(8px)" }}>
+          <button onClick={()=>setCaptured(null)} style={{ width:52,height:52,borderRadius:"50%",background:"rgba(255,255,255,0.12)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",backdropFilter:"blur(8px)" }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M1 4v6h6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M3.51 15a9 9 0 1 0 .49-4.95" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -771,8 +773,8 @@ const RoutinePickerModal = ({ routines, current, onSelect, onClose }) => {
         onTouchStart={e=>e.stopPropagation()}
         onTouchMove={e=>e.stopPropagation()}
         onTouchEnd={e=>e.stopPropagation()}
-        style={{ width:"100%",maxWidth:480,background:C.s1,borderRadius:0,padding:"20px 0",paddingBottom:"calc(22px + env(safe-area-inset-bottom,0px))",border:`1px solid ${C.s3}` }}>
-        <div style={{ width:36,height:4,borderRadius:0,background:C.s3,margin:"0 auto 18px",padding:"0 20px" }}/>
+        style={{ width:"100%",maxWidth:480,background:C.s1,borderRadius:"28px 28px 0 0",padding:"20px 0",paddingBottom:"calc(22px + env(safe-area-inset-bottom,0px))",border:`1px solid ${C.s3}` }}>
+        <div style={{ width:36,height:4,borderRadius:999,background:C.s3,margin:"0 auto 18px",padding:"0 20px" }}/>
         <div style={{ padding:"0 24px",marginBottom:18 }}>
           <div style={{ fontSize:17,fontWeight:800,color:C.t1,marginBottom:4 }}>Rutina del día</div>
           <div style={{ fontSize:13,color:C.t2 }}>¿Qué toca hoy?</div>
@@ -795,14 +797,14 @@ const RoutinePickerModal = ({ routines, current, onSelect, onClose }) => {
                 onClick={()=>goToCard(r.id)}
                 style={{
                   scrollSnapAlign:"center",flexShrink:0,width:"58vw",maxWidth:240,
-                  background:C.bg,borderRadius:0,padding:"20px 18px",textAlign:"center",
+                  background:C.bg,borderRadius:20,padding:"20px 18px",textAlign:"center",
                   border:`1.5px solid ${isPicked?r.color:C.s3}`,
                   boxShadow:isPicked?`0 14px 32px ${r.color}35, 0 4px 12px rgba(0,0,0,0.06)`:"0 2px 8px rgba(0,0,0,0.04)",
                   transform:isPicked?"translateY(-4px) scale(1)":"translateY(0) scale(0.94)",
                   opacity:isPicked?1:0.6,
                   transition:"transform 0.3s cubic-bezier(.22,1,.36,1), opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
                 }}>
-                <div style={{ width:56,height:56,borderRadius:0,background:`${r.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 14px" }}></div>
+                <div style={{ width:56,height:56,borderRadius:"50%",background:`${r.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 14px" }}></div>
                 <div style={{ fontSize:15,fontWeight:800,color:C.t1,marginBottom:4 }}>{r.name}</div>
                 <div style={{ fontSize:11,color:C.t3,marginBottom:12 }}>{r.sub}</div>
                 <div style={{ display:"flex",gap:6,justifyContent:"center",marginBottom:12 }}>
@@ -814,7 +816,7 @@ const RoutinePickerModal = ({ routines, current, onSelect, onClose }) => {
                   <Label style={{ fontSize:9,marginBottom:6 }}>Dificultad</Label>
                   <div style={{ display:"flex",gap:4 }}>
                     {[1,2,3,4,5].map(d=>(
-                      <div key={d} style={{ height:20,flex:1,borderRadius:0,background:d<=r.difficulty?r.color:C.s3 }}/>
+                      <div key={d} style={{ height:20,flex:1,borderRadius:8,background:d<=r.difficulty?r.color:C.s3 }}/>
                     ))}
                   </div>
                 </div>
@@ -830,18 +832,18 @@ const RoutinePickerModal = ({ routines, current, onSelect, onClose }) => {
         <div style={{ display:"flex",justifyContent:"center",gap:6,marginTop:16,marginBottom:20 }}>
           {routines.map(r=>(
             <div key={r.id} onClick={()=>goToCard(r.id)} className="pressable"
-              style={{ width:pickedId===r.id?16:6,height:6,borderRadius:0,background:pickedId===r.id?pickedRoutine.color:C.s3,transition:"all 0.25s cubic-bezier(.22,1,.36,1)" }}/>
+              style={{ width:pickedId===r.id?16:6,height:6,borderRadius:999,background:pickedId===r.id?pickedRoutine.color:C.s3,transition:"all 0.25s cubic-bezier(.22,1,.36,1)" }}/>
           ))}
         </div>
 
         {/* Confirm / cancel actions */}
         <div style={{ padding:"0 24px",display:"flex",flexDirection:"column",gap:8 }}>
           <button className="pressable" onClick={handleConfirm}
-            style={{ width:"100%",background:`linear-gradient(135deg,${pickedRoutine.color},${pickedRoutine.dark})`,border:"none",borderRadius:0,padding:"15px",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT,boxShadow:`0 8px 24px ${pickedRoutine.color}45` }}>
+            style={{ width:"100%",background:`linear-gradient(135deg,${pickedRoutine.color},${pickedRoutine.dark})`,border:"none",borderRadius:16,padding:"15px",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT,boxShadow:`0 8px 24px ${pickedRoutine.color}45` }}>
             Elegir "{pickedRoutine.name}"
           </button>
           <button className="pressable" onClick={onClose}
-            style={{ width:"100%",background:"none",border:"none",borderRadius:0,padding:"10px",fontSize:13,fontWeight:600,color:C.t3,cursor:"pointer",fontFamily:FONT }}>
+            style={{ width:"100%",background:"none",border:"none",borderRadius:16,padding:"10px",fontSize:13,fontWeight:600,color:C.t3,cursor:"pointer",fontFamily:FONT }}>
             Cancelar
           </button>
         </div>
@@ -895,13 +897,13 @@ const StartWorkoutModal = ({ routine, onConfirm, onClose }) => {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         className="anim-slideUp"
-        style={{ width:"100%",maxWidth:480,background:C.s1,borderRadius:0,padding:"0 24px 24px",paddingBottom:"calc(24px + env(safe-area-inset-bottom,0px))",border:`1px solid ${C.s3}`,boxShadow:`0 -8px 40px rgba(0,151,167,0.18)`,touchAction:"none" }}>
+        style={{ width:"100%",maxWidth:480,background:C.s1,borderRadius:"28px 28px 0 0",padding:"0 24px 24px",paddingBottom:"calc(24px + env(safe-area-inset-bottom,0px))",border:`1px solid ${C.s3}`,boxShadow:`0 -8px 40px rgba(0,151,167,0.18)`,touchAction:"none" }}>
         {/* Drag handle */}
         <div style={{ padding:"14px 0 10px",display:"flex",justifyContent:"center",cursor:"grab" }}>
-          <div style={{ width:36,height:4,borderRadius:0,background:C.s4 }}/>
+          <div style={{ width:36,height:4,borderRadius:999,background:C.s4 }}/>
         </div>
         <div style={{ textAlign:"center",marginBottom:20 }}>
-          <div style={{ width:64,height:64,borderRadius:0,background:`${routine.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px" }}></div>
+          <div style={{ width:64,height:64,borderRadius:"50%",background:`${routine.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px" }}></div>
           <div style={{ fontSize:24,fontWeight:900,color:C.t1,letterSpacing:"0.02em",fontFamily:FONT_DISPLAY,textTransform:"uppercase" }}>{routine.name}</div>
           <div style={{ fontSize:13,color:C.t2,marginTop:4 }}>{routine.duration} min · {routine.exercises.length} ejercicios</div>
         </div>
@@ -911,18 +913,18 @@ const StartWorkoutModal = ({ routine, onConfirm, onClose }) => {
             { icon:null, label:"Ejercicios", val:routine.exercises.length },
             { icon:null, label:"Dificultad", val:"★".repeat(routine.difficulty) },
           ].map((m,i)=>(
-            <div key={i} style={{ flex:1,background:C.bg,borderRadius:0,padding:"10px 6px",textAlign:"center",border:`1px solid ${C.s3}` }}>
+            <div key={i} style={{ flex:1,background:C.bg,borderRadius:20,padding:"10px 6px",textAlign:"center",border:`1px solid ${C.s3}` }}>
               <div style={{ fontSize:13,fontWeight:800,color:C.t1 }}>{m.val}</div>
               <div style={{ fontSize:9,fontWeight:700,color:C.t3,textTransform:"uppercase",letterSpacing:"0.06em",marginTop:4 }}>{m.label}</div>
             </div>
           ))}
         </div>
         <button className="pressable" onClick={onConfirm}
-          style={{ width:"100%",background:`linear-gradient(135deg,${routine.color},${routine.dark})`,border:"none",borderRadius:0,padding:"15px",fontSize:15,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT,boxShadow:`0 8px 24px ${routine.color}50`,marginBottom:10 }}>
+          style={{ width:"100%",background:`linear-gradient(135deg,${routine.color},${routine.dark})`,border:"none",borderRadius:16,padding:"15px",fontSize:15,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT,boxShadow:`0 8px 24px ${routine.color}50`,marginBottom:10 }}>
           ¡Empezar entrenamiento!
         </button>
         <button onClick={onClose}
-          style={{ width:"100%",background:"none",border:"none",borderRadius:0,padding:"10px",fontSize:14,fontWeight:600,color:C.t3,cursor:"pointer",fontFamily:FONT }}>
+          style={{ width:"100%",background:"none",border:"none",borderRadius:16,padding:"10px",fontSize:14,fontWeight:600,color:C.t3,cursor:"pointer",fontFamily:FONT }}>
           Cancelar
         </button>
       </div>
@@ -1008,8 +1010,8 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
 
       {/* Bear Hero */}
       <div className="anim-fadeUp" style={{ padding:"16px 22px 0",animationDelay:"0.05s" }}>
-        <div style={{ position:"relative",background:C.s1,borderRadius:0,padding:"32px 22px 26px",textAlign:"center",border:`1px solid ${C.s3}`,boxShadow:`0 4px 24px rgba(0,151,167,0.15)`,overflow:"hidden" }}>
-          <div style={{ position:"absolute",top:-40,right:-40,width:120,height:120,borderRadius:0,background:`radial-gradient(circle,${C.pink}22 0%,transparent 70%)`,pointerEvents:"none" }}/>
+        <div style={{ position:"relative",background:C.s1,borderRadius:20,padding:"32px 22px 26px",textAlign:"center",border:`1px solid ${C.s3}`,boxShadow:`0 4px 24px rgba(0,151,167,0.15)`,overflow:"hidden" }}>
+          <div style={{ position:"absolute",top:-40,right:-40,width:120,height:120,borderRadius:28,background:`radial-gradient(circle,${C.pink}22 0%,transparent 70%)`,pointerEvents:"none" }}/>
           <div style={{ fontSize:15,fontWeight:700,color:C.accentL,letterSpacing:"0.12em",marginBottom:20,fontFamily:FONT_DISPLAY,textTransform:"uppercase" }}>Más fuertes juntos, cada día</div>
           <div style={{ display:"flex",justifyContent:"center",marginBottom:20 }}>
             <ProfileAvatar size={110} showGlow={false}
@@ -1021,7 +1023,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
             style={{
               background:"linear-gradient(135deg,#C9A84C 0%,#E8C96A 40%,#A07828 100%)",
               border:"1px solid #D4B05A",
-              borderRadius:0,
+              borderRadius:20,
               padding:"15px 40px",
               fontSize:14,
               fontWeight:800,
@@ -1038,7 +1040,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
           </button>
 
           {/* Routine selector pill */}
-          <div className="pressable" onClick={onOpenRoutinePicker} style={{ display:"inline-flex",alignItems:"center",gap:10,background:C.s2,borderRadius:0,padding:"10px 18px",border:`1px solid ${C.s3}`,cursor:"pointer" }}>
+          <div className="pressable" onClick={onOpenRoutinePicker} style={{ display:"inline-flex",alignItems:"center",gap:10,background:C.s2,borderRadius:16,padding:"10px 18px",border:`1px solid ${C.s3}`,cursor:"pointer" }}>
             <span style={{ fontSize:16 }}></span>
             <div style={{ textAlign:"left" }}>
               <div style={{ fontSize:12,fontWeight:700,color:C.t1 }}>{todayRoutine.name}</div>
@@ -1054,7 +1056,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
       {/* This week — 2-col stats + mini chart */}
       <div className="anim-fadeUp pressable" onClick={onGoStats} style={{ padding:"22px 22px 0",animationDelay:"0.15s" }}>
         <Label style={{ marginBottom:12 }}>Esta semana <span style={{ fontSize:9,color:C.accent,fontWeight:700 }}>→ ver stats</span></Label>
-        <div style={{ background:C.s1,borderRadius:0,padding:"18px",border:`1px solid ${C.s3}` }}>
+        <div style={{ background:C.s1,borderRadius:20,padding:"18px",border:`1px solid ${C.s3}` }}>
           {/* Mini bar chart — thin line + dot cap */}
           <div style={{ display:"flex",gap:5,alignItems:"flex-end",height:56,marginBottom:14 }}>
             {STATS_WEEK.map((v,i)=>{
@@ -1066,11 +1068,11 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
                 <div key={i} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4 }}>
                   <div style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:44,gap:0 }}>
                     {/* Dot cap */}
-                    <div style={{ width:5,height:5,borderRadius:0,background:v>0?color:"transparent",marginBottom:0,flexShrink:0,boxShadow:isToday?`0 0 6px ${C.accent}80`:"none" }}/>
+                    <div style={{ width:5,height:5,borderRadius:"50%",background:v>0?color:"transparent",marginBottom:0,flexShrink:0,boxShadow:isToday?`0 0 6px ${C.accent}80`:"none" }}/>
                     {/* Thin line */}
-                    <div style={{ width:2,height:h||0,borderRadius:0,background:color,transition:"height 0.6s cubic-bezier(.22,1,.36,1)" }}/>
+                    <div style={{ width:2,height:h||0,borderRadius:2,background:color,transition:"height 0.6s cubic-bezier(.22,1,.36,1)" }}/>
                     {/* Baseline dot */}
-                    {v>0&&<div style={{ width:2,height:2,borderRadius:0,background:color,flexShrink:0 }}/>}
+                    {v>0&&<div style={{ width:2,height:2,borderRadius:"50%",background:color,flexShrink:0 }}/>}
                   </div>
                   <span style={{ fontSize:9,fontWeight:700,color:isToday?C.accent:C.t3 }}>{DAYS[i]}</span>
                 </div>
@@ -1092,7 +1094,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
             <Label>Historial del gym</Label>
             <div style={{ fontSize:11,color:C.t3,marginTop:4 }}>{photos.length} fotos juntos</div>
           </div>
-          <button className="pressable" onClick={()=>setShowCamera(true)} style={{ display:"flex",alignItems:"center",gap:6,background:C.accent,border:"none",borderRadius:0,padding:"8px 16px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>
+          <button className="pressable" onClick={()=>setShowCamera(true)} style={{ display:"flex",alignItems:"center",gap:6,background:C.accent,border:"none",borderRadius:16,padding:"8px 16px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <circle cx="12" cy="13" r="4" stroke="#fff" strokeWidth="2"/>
@@ -1102,7 +1104,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
         </div>
         {photosLoading ? (
           <div style={{ display:"flex",justifyContent:"center",gap:8,padding:"30px 0" }}>
-            {[0,1,2].map(i=><div key={i} style={{ width:6,height:6,borderRadius:0,background:C.accent,opacity:0.6,animation:`pulse 1s ease-in-out ${i*0.2}s infinite` }}/>)}
+            {[0,1,2].map(i=><div key={i} style={{ width:6,height:6,borderRadius:"50%",background:C.accent,opacity:0.6,animation:`pulse 1s ease-in-out ${i*0.2}s infinite` }}/>)}
           </div>
         ) : photos.length===0 ? (
           <div style={{ textAlign:"center",padding:"36px 20px",color:C.t3 }}>
@@ -1123,7 +1125,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
 
       {/* Camera FAB — safe distance from tab bar */}
       <div style={{ position:"fixed",bottom:88,left:"50%",transform:`translateX(-50%) translateY(${cameraFabVisible?0:20}px)`,opacity:cameraFabVisible?1:0,transition:"all 0.35s cubic-bezier(.34,1.56,.64,1)",zIndex:150,pointerEvents:cameraFabVisible?"auto":"none" }}>
-        <button className="pressable" onClick={()=>setShowCamera(true)} style={{ display:"flex",alignItems:"center",gap:10,background:C.accent,border:"none",borderRadius:0,padding:"13px 24px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT,boxShadow:`0 8px 28px ${C.accent}55`,whiteSpace:"nowrap" }}>
+        <button className="pressable" onClick={()=>setShowCamera(true)} style={{ display:"flex",alignItems:"center",gap:10,background:C.accent,border:"none",borderRadius:16,padding:"13px 24px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT,boxShadow:`0 8px 28px ${C.accent}55`,whiteSpace:"nowrap" }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             <circle cx="12" cy="13" r="4" stroke="#fff" strokeWidth="2"/>
@@ -1162,16 +1164,16 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
     onClose();
   };
 
-  const inputStyle = { width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:0,padding:"10px 14px",fontSize:14,color:C.t1,fontFamily:FONT,outline:"none" };
+  const inputStyle = { width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:14,padding:"10px 14px",fontSize:14,color:C.t1,fontFamily:FONT,outline:"none" };
   const smallInput = { ...inputStyle, padding:"8px 10px",fontSize:13,textAlign:"center" };
 
   return (
     <div className="anim-fadeIn" style={{ position:"fixed",inset:0,zIndex:260,background:"rgba(249,243,234,0.72)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",fontFamily:FONT }} onClick={onClose}>
-      <div className="anim-slideUp" onClick={e=>e.stopPropagation()} style={{ width:"100%",maxWidth:480,overflowY:"auto",background:C.bg,borderRadius:0,maxHeight:"92vh",paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
+      <div className="anim-slideUp" onClick={e=>e.stopPropagation()} style={{ width:"100%",maxWidth:480,overflowY:"auto",background:C.bg,borderRadius:"28px 28px 0 0",maxHeight:"92vh",paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
         <div style={{ position:"sticky",top:0,background:C.bg,padding:"16px 20px 14px",borderBottom:`1px solid ${C.s3}`,display:"flex",justifyContent:"space-between",alignItems:"center",zIndex:1 }}>
           <button onClick={onClose} style={{ background:"none",border:"none",color:C.t2,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT }}>Cancelar</button>
           <div style={{ fontSize:16,fontWeight:800,color:C.t1 }}>Editar rutina</div>
-          <button onClick={handleSave} style={{ background:C.accent,border:"none",borderRadius:0,padding:"7px 16px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>Guardar</button>
+          <button onClick={handleSave} style={{ background:C.accent,border:"none",borderRadius:16,padding:"7px 16px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>Guardar</button>
         </div>
 
         <div style={{ padding:"16px 20px" }}>
@@ -1188,7 +1190,7 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
               <Label style={{ marginBottom:8 }}>Dificultad</Label>
               <div style={{ display:"flex",gap:4,marginTop:4 }}>
                 {[1,2,3,4,5].map(d=>(
-                  <div key={d} className="pressable" onClick={()=>setDifficulty(d)} style={{ height:28,flex:1,borderRadius:0,background:d<=difficulty?routine.color:C.s3,cursor:"pointer",transition:"background 0.2s" }}/>
+                  <div key={d} className="pressable" onClick={()=>setDifficulty(d)} style={{ height:28,flex:1,borderRadius:8,background:d<=difficulty?routine.color:C.s3,cursor:"pointer",transition:"background 0.2s" }}/>
                 ))}
               </div>
             </div>
@@ -1196,13 +1198,13 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
 
           <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12 }}>
             <Label>Ejercicios ({exercises.length})</Label>
-            <button className="pressable" onClick={()=>setShowAddEx(v=>!v)} style={{ display:"flex",alignItems:"center",gap:5,background:C.accent,border:"none",borderRadius:0,padding:"5px 12px",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>
+            <button className="pressable" onClick={()=>setShowAddEx(v=>!v)} style={{ display:"flex",alignItems:"center",gap:5,background:C.accent,border:"none",borderRadius:16,padding:"5px 12px",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>
               <span style={{ fontSize:16,lineHeight:1 }}>+</span> Agregar
             </button>
           </div>
 
           {showAddEx&&(
-            <div className="anim-fadeUp" style={{ background:C.s2,borderRadius:0,padding:"14px",marginBottom:14,border:`1px solid ${C.s3}` }}>
+            <div className="anim-fadeUp" style={{ background:C.s2,borderRadius:20,padding:"14px",marginBottom:14,border:`1px solid ${C.s3}` }}>
               <input style={{ ...inputStyle,marginBottom:10 }} value={newExName} onChange={e=>setNewExName(e.target.value)} placeholder="Nombre del ejercicio"/>
               <input style={{ ...inputStyle,marginBottom:10 }} value={newExMuscle} onChange={e=>setNewExMuscle(e.target.value)} placeholder="Músculo (opcional)"/>
               <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12 }}>
@@ -1218,20 +1220,20 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
                 ))}
               </div>
               <div style={{ display:"flex",gap:8 }}>
-                <button onClick={()=>setShowAddEx(false)} style={{ flex:1,background:C.s1,border:`1px solid ${C.s3}`,borderRadius:0,padding:"10px",fontSize:13,fontWeight:600,color:C.t2,cursor:"pointer",fontFamily:FONT }}>Cancelar</button>
-                <button className="pressable" onClick={addEx} style={{ flex:2,background:C.accent,border:"none",borderRadius:0,padding:"10px",fontSize:13,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT }}>Añadir ejercicio</button>
+                <button onClick={()=>setShowAddEx(false)} style={{ flex:1,background:C.s1,border:`1px solid ${C.s3}`,borderRadius:16,padding:"10px",fontSize:13,fontWeight:600,color:C.t2,cursor:"pointer",fontFamily:FONT }}>Cancelar</button>
+                <button className="pressable" onClick={addEx} style={{ flex:2,background:C.accent,border:"none",borderRadius:16,padding:"10px",fontSize:13,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT }}>Añadir ejercicio</button>
               </div>
             </div>
           )}
 
           {exercises.map((ex,i)=>(
-            <div key={ex._id} style={{ background:C.s1,borderRadius:0,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.s3}`,display:"flex",alignItems:"center",gap:12 }}>
-              <div style={{ width:28,height:28,borderRadius:0,background:C.s2,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:C.t3,flexShrink:0 }}>{i+1}</div>
+            <div key={ex._id} style={{ background:C.s1,borderRadius:20,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.s3}`,display:"flex",alignItems:"center",gap:12 }}>
+              <div style={{ width:28,height:28,borderRadius:"50%",background:C.s2,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:C.t3,flexShrink:0 }}>{i+1}</div>
               <div style={{ flex:1,minWidth:0 }}>
                 <div style={{ fontSize:14,fontWeight:700,color:C.t1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</div>
                 <div style={{ fontSize:11,color:C.t3,marginTop:2 }}>{ex.sets}×{ex.reps}{ex.weight>0?` · ${ex.weight}kg`:""}{ex.muscle?` · ${ex.muscle}`:""}</div>
               </div>
-              <button className="pressable" onClick={()=>removeEx(ex._id)} style={{ width:28,height:28,borderRadius:0,background:`${C.accent}15`,border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0 }}>
+              <button className="pressable" onClick={()=>removeEx(ex._id)} style={{ width:28,height:28,borderRadius:"50%",background:`${C.accent}15`,border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0 }}>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M2 2L10 10M10 2L2 10" stroke={C.accent} strokeWidth="1.8" strokeLinecap="round"/>
                 </svg>
@@ -1282,11 +1284,11 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
         </div>
         <div style={{ padding:"0 22px 24px",display:"flex",flexDirection:"column",gap:18 }}>
           {routines.map((r,i)=>(
-            <div key={r.id} className="anim-fadeUp pressable" onClick={()=>handleCardClick(r)} style={{ borderRadius:0,overflow:"hidden",background:C.s1,border:`1px solid ${C.s3}`,animationDelay:`${i*0.08}s`,boxShadow:"0 4px 20px rgba(0,0,0,0.07)",cursor:"pointer" }}>
+            <div key={r.id} className="anim-fadeUp pressable" onClick={()=>handleCardClick(r)} style={{ borderRadius:24,overflow:"hidden",background:C.s1,border:`1px solid ${C.s3}`,animationDelay:`${i*0.08}s`,boxShadow:"0 4px 20px rgba(0,0,0,0.07)",cursor:"pointer" }}>
               {/* Full-bleed hero header */}
               <div style={{ height:92,background:`linear-gradient(135deg,${r.color},${r.dark})`,position:"relative",display:"flex",alignItems:"center",padding:"0 20px",overflow:"hidden" }}>
-                <div style={{ position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:0,background:"rgba(255,255,255,0.08)",pointerEvents:"none" }}/>
-                <div style={{ position:"absolute",bottom:-30,left:60,width:80,height:80,borderRadius:0,background:"rgba(255,255,255,0.06)",pointerEvents:"none" }}/>
+                <div style={{ position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:28,background:"rgba(255,255,255,0.08)",pointerEvents:"none" }}/>
+                <div style={{ position:"absolute",bottom:-30,left:60,width:80,height:80,borderRadius:"50%",background:"rgba(255,255,255,0.06)",pointerEvents:"none" }}/>
                 <div style={{ fontSize:42,marginRight:14,filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.2))" }}></div>
                 <div style={{ flex:1,minWidth:0 }}>
                   <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.7)",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4 }}>{r.sub}</div>
@@ -1295,7 +1297,7 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
               </div>
               <div style={{ padding:"16px 20px 20px" }}>
                 <div style={{ display:"flex",gap:4,marginBottom:16 }}>
-                  {[1,2,3,4,5].map(d=><div key={d} style={{ height:4,flex:1,borderRadius:0,background:d<=r.difficulty?r.color:C.s3 }}/>)}
+                  {[1,2,3,4,5].map(d=><div key={d} style={{ height:4,flex:1,borderRadius:8,background:d<=r.difficulty?r.color:C.s3 }}/>)}
                 </div>
                 <div style={{ display:"flex",gap:12,justifyContent:"space-between",alignItems:"center" }}>
                   {[
@@ -1307,14 +1309,14 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
                     </div>
                   ))}
                   <div style={{ flex:1 }}/>
-                  <button className="pressable" onClick={(e)=>{e.stopPropagation();setEditingRoutine(r);}} style={{ background:C.s2,border:`1px solid ${C.s3}`,borderRadius:0,padding:"7px 13px",fontSize:11,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT,display:"flex",alignItems:"center",gap:4 }}>
+                  <button className="pressable" onClick={(e)=>{e.stopPropagation();setEditingRoutine(r);}} style={{ background:C.s2,border:`1px solid ${C.s3}`,borderRadius:16,padding:"7px 13px",fontSize:11,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT,display:"flex",alignItems:"center",gap:4 }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke={C.t2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke={C.t2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                     Editar
                   </button>
-                  <button className="pressable" onClick={(e)=>{e.stopPropagation();onSelect(r);}} style={{ background:r.color,border:"none",borderRadius:0,padding:"7px 15px",fontSize:11,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT }}>Empezar</button>
+                  <button className="pressable" onClick={(e)=>{e.stopPropagation();onSelect(r);}} style={{ background:r.color,border:"none",borderRadius:16,padding:"7px 15px",fontSize:11,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT }}>Empezar</button>
                 </div>
               </div>
             </div>
@@ -1382,10 +1384,10 @@ const StatsScreen = () => {
           <div style={{ fontSize:32,fontWeight:900,color:C.t1,letterSpacing:"-0.5px",fontFamily:FONT_SERIF }}>Estadísticas</div>
           <div style={{ fontSize:13,color:C.t2,marginTop:2,letterSpacing:"0.04em" }}>Tu progreso</div>
         </div>
-        <div style={{ display:"flex",background:C.s2,borderRadius:0,padding:3,gap:2 }}>
+        <div style={{ display:"flex",background:C.s2,borderRadius:999,padding:3,gap:2 }}>
           {["week","month"].map(p=>(
             <button key={p} onClick={()=>setPeriod(p)}
-              style={{ background:period===p?C.s1:"transparent",border:"none",borderRadius:0,padding:"5px 12px",fontSize:11,fontWeight:700,color:period===p?C.t1:C.t3,cursor:"pointer",fontFamily:FONT,transition:"all 0.18s",boxShadow:period===p?"0 1px 4px rgba(0,0,0,0.08)":"none" }}>
+              style={{ background:period===p?C.s1:"transparent",border:"none",borderRadius:999,padding:"5px 12px",fontSize:11,fontWeight:700,color:period===p?C.t1:C.t3,cursor:"pointer",fontFamily:FONT,transition:"all 0.18s",boxShadow:period===p?"0 1px 4px rgba(0,0,0,0.08)":"none" }}>
               {p==="week"?"Semana":"Mes"}
             </button>
           ))}
@@ -1393,7 +1395,7 @@ const StatsScreen = () => {
       </div>
 
       {/* Activity chart */}
-      <div className="anim-fadeUp" style={{ background:C.s1,borderRadius:0,padding:"18px",marginBottom:14,border:`1px solid ${C.s3}` }}>
+      <div className="anim-fadeUp" style={{ background:C.s1,borderRadius:20,padding:"18px",marginBottom:14,border:`1px solid ${C.s3}` }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:14 }}>
           <div style={{ fontSize:14,fontWeight:700,color:C.t1 }}>Minutos activos</div>
           <Chip color={C.accent} style={{ fontSize:10 }}>{period==="week"?"Esta semana":"Este mes"}</Chip>
@@ -1412,7 +1414,7 @@ const StatsScreen = () => {
                 {/* Thin line + dot cap column */}
                 <div style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",flex:1,gap:0 }}>
                   <div style={{
-                    width:6,height:6,borderRadius:0,flexShrink:0,
+                    width:6,height:6,borderRadius:"50%",flexShrink:0,
                     background: v>0 ? color : "transparent",
                     boxShadow: (isSelected||isToday)&&v>0 ? `0 0 8px ${color}90` : "none",
                     transition:"all 0.35s",
@@ -1420,12 +1422,12 @@ const StatsScreen = () => {
                   <div style={{
                     width:2,
                     height:h||0,
-                    borderRadius:0,
+                    borderRadius:20,
                     background: color,
                     transition:"height 0.5s cubic-bezier(.22,1,.36,1), background 0.3s",
                     transformOrigin:"bottom",
                   }}/>
-                  {v>0&&<div style={{ width:2,height:2,borderRadius:0,background:color,flexShrink:0 }}/>}
+                  {v>0&&<div style={{ width:2,height:2,borderRadius:"50%",background:color,flexShrink:0 }}/>}
                 </div>
                 {period==="week"&&<span style={{ fontSize:10,fontWeight:700,color:isSelected?C.accent:isToday?C.accent:C.t3 }}>{labels[i]}</span>}
               </div>
@@ -1444,7 +1446,7 @@ const StatsScreen = () => {
         { label:"Frec. muscular semanal",val:"6 grupos",detail:"↑ 2 vs. semana pasada",color:C.accent,pct:0.75 },
         { label:"Sesiones completadas",val:"47",detail:"↑ 4 vs. semana pasada",color:C.pink,pct:0.58 },
       ].map((s,i)=>(
-        <div key={i} className="anim-fadeUp" style={{ background:C.s1,borderRadius:0,padding:"16px",marginBottom:10,border:`1px solid ${C.s3}`,animationDelay:`${i*0.07}s`,boxShadow:`0 2px 12px ${s.color}10` }}>
+        <div key={i} className="anim-fadeUp" style={{ background:C.s1,borderRadius:20,padding:"16px",marginBottom:10,border:`1px solid ${C.s3}`,animationDelay:`${i*0.07}s`,boxShadow:`0 2px 12px ${s.color}10` }}>
           <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:10 }}>
             <Ring pct={s.pct} size={50} sw={4.5} color={s.color} bg={C.s3}>
               <span style={{ fontSize:9,fontWeight:700,color:s.color }}>{Math.round(s.pct*100)}%</span>
@@ -1454,8 +1456,8 @@ const StatsScreen = () => {
               <Label style={{ marginTop:2 }}>{s.label}</Label>
             </div>
           </div>
-          <div style={{ height:4,borderRadius:0,background:C.s3,overflow:"hidden" }}>
-            <div style={{ height:"100%",borderRadius:0,background:s.color,width:`${s.pct*100}%`,transition:"width 0.8s cubic-bezier(.22,1,.36,1)" }}/>
+          <div style={{ height:4,borderRadius:4,background:C.s3,overflow:"hidden" }}>
+            <div style={{ height:"100%",borderRadius:4,background:s.color,width:`${s.pct*100}%`,transition:"width 0.8s cubic-bezier(.22,1,.36,1)" }}/>
           </div>
           <div style={{ fontSize:11,color:C.t3,marginTop:6 }}>{s.detail}</div>
         </div>
@@ -1472,14 +1474,14 @@ const StatsScreen = () => {
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
-            style={{ width:"100%",maxWidth:480,background:C.s1,borderRadius:0,paddingBottom:"calc(28px + env(safe-area-inset-bottom,0px))",border:`1px solid ${C.s3}`,boxShadow:`0 -4px 32px rgba(0,151,167,0.2)`,touchAction:"none" }}>
+            style={{ width:"100%",maxWidth:480,background:C.s1,borderRadius:"28px 28px 0 0",paddingBottom:"calc(28px + env(safe-area-inset-bottom,0px))",border:`1px solid ${C.s3}`,boxShadow:`0 -4px 32px rgba(0,151,167,0.2)`,touchAction:"none" }}>
             {/* Drag handle */}
             <div style={{ padding:"14px 0 8px",display:"flex",justifyContent:"center" }}>
-              <div style={{ width:36,height:4,borderRadius:0,background:C.s4 }}/>
+              <div style={{ width:36,height:4,borderRadius:999,background:C.s4 }}/>
             </div>
             <div style={{ padding:"4px 22px 20px" }}>
               <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:18 }}>
-                <div style={{ width:44,height:44,borderRadius:0,background:`${C.accent}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22 }}>●</div>
+                <div style={{ width:44,height:44,borderRadius:"50%",background:`${C.accent}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22 }}>●</div>
                 <div>
                   <div style={{ fontSize:18,fontWeight:900,color:C.t1,fontFamily:FONT_DISPLAY }}>{DAY_EXERCISES[selectedDay].day}</div>
                   <div style={{ fontSize:12,color:C.t2,marginTop:2 }}>Esta semana</div>
@@ -1494,8 +1496,8 @@ const StatsScreen = () => {
                 <>
                   <div style={{ fontSize:11,fontWeight:700,color:C.t3,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:10 }}>Ejercicios completados</div>
                   {DAY_EXERCISES[selectedDay].exercises.map((ex,i)=>(
-                    <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:0,background:i%2===0?C.s2:C.bg,marginBottom:6 }}>
-                      <div style={{ width:28,height:28,borderRadius:0,background:`${C.accent}18`,display:"flex",alignItems:"center",justifyContent:"center" }}>
+                    <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:20,background:i%2===0?C.s2:C.bg,marginBottom:6 }}>
+                      <div style={{ width:28,height:28,borderRadius:"50%",background:`${C.accent}18`,display:"flex",alignItems:"center",justifyContent:"center" }}>
                         <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 6.5L5 9.5L11 3.5" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       </div>
                       <span style={{ fontSize:14,fontWeight:600,color:C.t1 }}>{ex}</span>
@@ -1522,20 +1524,20 @@ const EditProfileModal = ({ profile, onSave, onClose }) => {
   const [partner,setPartner]=useState(profile.partner);
   const [emoji,setEmoji]=useState(profile.emoji);
   const avatarOptions=["A","B","C","D","E","F","G"];
-  const inputStyle={ width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:0,padding:"10px 14px",fontSize:14,color:C.t1,fontFamily:FONT,outline:"none" };
+  const inputStyle={ width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:14,padding:"10px 14px",fontSize:14,color:C.t1,fontFamily:FONT,outline:"none" };
   return (
     <div className="anim-fadeIn" style={{ position:"fixed",inset:0,zIndex:260,background:"rgba(249,243,234,0.72)",backdropFilter:"blur(10px)",display:"flex",flexDirection:"column",fontFamily:FONT }}>
-      <div className="anim-slideUp" style={{ background:C.bg,marginTop:"auto",borderRadius:0,maxHeight:"85vh",overflowY:"auto",paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
+      <div className="anim-slideUp" style={{ background:C.bg,marginTop:"auto",borderRadius:"28px 28px 0 0",maxHeight:"85vh",overflowY:"auto",paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
         <div style={{ position:"sticky",top:0,background:C.bg,padding:"16px 20px 14px",borderBottom:`1px solid ${C.s3}`,display:"flex",justifyContent:"space-between",alignItems:"center",zIndex:1 }}>
           <button onClick={onClose} style={{ background:"none",border:"none",color:C.t2,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT }}>Cancelar</button>
           <div style={{ fontSize:16,fontWeight:800,color:C.t1 }}>Editar perfil</div>
-          <button onClick={()=>{onSave({name,partner,emoji});onClose();}} style={{ background:C.accent,border:"none",borderRadius:0,padding:"7px 16px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>Guardar</button>
+          <button onClick={()=>{onSave({name,partner,emoji});onClose();}} style={{ background:C.accent,border:"none",borderRadius:16,padding:"7px 16px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>Guardar</button>
         </div>
         <div style={{ padding:"20px" }}>
           <Label style={{ marginBottom:10 }}>Avatar</Label>
           <div style={{ display:"flex",gap:10,marginBottom:20,flexWrap:"wrap" }}>
             {avatarOptions.map(e=>(
-              <div key={e} className="pressable" onClick={()=>setEmoji(e)} style={{ width:44,height:44,borderRadius:0,background:emoji===e?`${C.accent}20`:C.s2,border:`2px solid ${emoji===e?C.accent:C.s3}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,cursor:"pointer",transition:"all 0.15s" }}>{e}</div>
+              <div key={e} className="pressable" onClick={()=>setEmoji(e)} style={{ width:44,height:44,borderRadius:"50%",background:emoji===e?`${C.accent}20`:C.s2,border:`2px solid ${emoji===e?C.accent:C.s3}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,cursor:"pointer",transition:"all 0.15s" }}>{e}</div>
             ))}
           </div>
           <Label style={{ marginBottom:8 }}>Nombre</Label>
@@ -1555,11 +1557,11 @@ const ProfileScreen = ({ profile, onEditProfile }) => {
     <div style={{ position:"relative",padding:"28px 22px 24px",background:`linear-gradient(160deg,${C.s2} 0%,${C.bg} 100%)`,textAlign:"center",borderBottom:`1px solid ${C.s3}` }}>
       <div style={{ position:"absolute",top:12,left:20 }}><FloralBranch side="left" style={{ opacity:0.25 }}/></div>
       <div style={{ position:"absolute",top:12,right:20 }}><FloralBranch side="right" style={{ opacity:0.25 }}/></div>
-      <div style={{ width:80,height:80,borderRadius:0,margin:"0 auto 12px",background:`linear-gradient(135deg,${C.s3},${C.s2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:38,border:`3px solid ${C.accent}40`,boxShadow:`0 0 0 6px ${C.accent}12` }}></div>
+      <div style={{ width:80,height:80,borderRadius:"50%",margin:"0 auto 12px",background:`linear-gradient(135deg,${C.s3},${C.s2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:38,border:`3px solid ${C.accent}40`,boxShadow:`0 0 0 6px ${C.accent}12` }}></div>
       <div style={{ fontSize:22,fontWeight:900,color:C.t1 }}>{profile.name}</div>
       <div style={{ fontSize:13,color:C.t2,marginTop:2 }}>Pareja de {profile.partner}</div>
       <div style={{ display:"flex",gap:10,justifyContent:"center",marginTop:14 }}>
-        <button className="pressable" onClick={onEditProfile} style={{ display:"inline-flex",alignItems:"center",gap:6,background:C.s1,border:`1px solid ${C.s3}`,borderRadius:0,padding:"7px 18px",fontSize:12,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT }}>
+        <button className="pressable" onClick={onEditProfile} style={{ display:"inline-flex",alignItems:"center",gap:6,background:C.s1,border:`1px solid ${C.s3}`,borderRadius:16,padding:"7px 18px",fontSize:12,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke={C.t2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke={C.t2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1572,7 +1574,7 @@ const ProfileScreen = ({ profile, onEditProfile }) => {
       {[
         { label:"Socio de entreno",val:`${profile.partner} ` },
       ].map((row,i)=>(
-        <div key={i} style={{ background:C.s1,borderRadius:0,padding:"14px 16px",marginBottom:8,display:"flex",justifyContent:"space-between",border:`1px solid ${C.s3}` }}>
+        <div key={i} style={{ background:C.s1,borderRadius:20,padding:"14px 16px",marginBottom:8,display:"flex",justifyContent:"space-between",border:`1px solid ${C.s3}` }}>
           <span style={{ fontSize:14,color:C.t2 }}>{row.label}</span>
           <span style={{ fontSize:14,fontWeight:700,color:C.t1 }}>{row.val}</span>
         </div>
@@ -1646,7 +1648,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, style={} }) => {
     const unlocked = unlockedField === label;
     return (
       <div
-        style={{ flex:1,background:done?`${accent}10`:C.s2,borderRadius:0,padding:"8px 4px",textAlign:"center",transition:"background 0.3s, opacity 0.2s",opacity:unlocked?1:0.85,border:unlocked?`1px solid ${accent}50`:"1px solid transparent" }}
+        style={{ flex:1,background:done?`${accent}10`:C.s2,borderRadius:20,padding:"8px 4px",textAlign:"center",transition:"background 0.3s, opacity 0.2s",opacity:unlocked?1:0.85,border:unlocked?`1px solid ${accent}50`:"1px solid transparent" }}
         onClick={e=>{e.stopPropagation();handleChipTap(label);}}>
         <div style={{ fontSize:9,fontWeight:700,color:C.t3,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4 }}>{label}</div>
         <input
@@ -1668,7 +1670,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, style={} }) => {
         className="anim-fadeUp pressable"
         onClick={()=>setExpanded(true)}
         style={{
-          borderRadius:0,
+          borderRadius:20,
           border:`1px solid ${accent}30`,
           background:`${accent}08`,
           transition:"all 0.3s ease",
@@ -1678,7 +1680,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, style={} }) => {
           display:"flex",alignItems:"center",gap:12,
           ...style
         }}>
-        <div style={{ width:28,height:28,borderRadius:0,flexShrink:0,background:`linear-gradient(135deg,${accent},${C.accentD})`,display:"flex",alignItems:"center",justifyContent:"center" }}>
+        <div style={{ width:28,height:28,borderRadius:"50%",flexShrink:0,background:`linear-gradient(135deg,${accent},${C.accentD})`,display:"flex",alignItems:"center",justifyContent:"center" }}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </div>
         <div style={{ flex:1,minWidth:0 }}>
@@ -1697,7 +1699,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, style={} }) => {
       className="anim-fadeUp pressable"
       onClick={handleToggle}
       style={{
-        borderRadius:0,
+        borderRadius:20,
         border:`1px solid ${done?`${accent}35`:C.s3}`,
         background:done?`${accent}08`:C.s1,
         transition:"all 0.3s ease",
@@ -1711,7 +1713,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, style={} }) => {
         {/* Header row */}
         <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:16 }}>
           {/* Index / check bubble */}
-          <div style={{ width:36,height:36,borderRadius:0,flexShrink:0,background:done?`linear-gradient(135deg,${accent},${C.accentD})`:C.s2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.25s" }}>
+          <div style={{ width:36,height:36,borderRadius:"50%",flexShrink:0,background:done?`linear-gradient(135deg,${accent},${C.accentD})`:C.s2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.25s" }}>
             {done?(
               <svg width="15" height="15" viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             ):(
@@ -1724,7 +1726,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, style={} }) => {
             <div style={{ display:"flex",alignItems:"center",gap:6,marginTop:6,flexWrap:"wrap" }}>
               {ex.muscle&&<Chip color={accent} style={{ fontSize:9,padding:"2px 8px" }}>{ex.muscle}</Chip>}
               {/* Editable machine chip */}
-              <div onClick={e=>{e.stopPropagation();handleChipTap("machine");}} style={{ display:"flex",alignItems:"center",gap:3,background:C.s2,borderRadius:0,padding:"3px 9px",border:unlockedField==="machine"?`1px solid ${accent}50`:"1px solid transparent" }}>
+              <div onClick={e=>{e.stopPropagation();handleChipTap("machine");}} style={{ display:"flex",alignItems:"center",gap:3,background:C.s2,borderRadius:16,padding:"3px 9px",border:unlockedField==="machine"?`1px solid ${accent}50`:"1px solid transparent" }}>
                 <span style={{ fontSize:9,fontWeight:700,color:C.t3 }}>Máq.</span>
                 <input
                   type="number"
@@ -1751,7 +1753,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, style={} }) => {
           className={`pressable${popping ? " anim-confirmPop" : ""}`}
           onClick={e=>{e.stopPropagation();handleToggle();}}
           style={{
-            width:"100%",border:"none",borderRadius:0,padding:"11px",
+            width:"100%",border:"none",borderRadius:20,padding:"11px",
             fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT,
             background:done?`${accent}14`:`linear-gradient(135deg,${accent},${C.accentD})`,
             color:done?accent:"#fff",
@@ -1818,7 +1820,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
       )
     : ALL_PRESET_EXERCISES;
 
-  const inputS={ background:C.s2,border:`1px solid ${C.s3}`,borderRadius:0,padding:"9px 12px",fontSize:14,color:C.t1,fontFamily:FONT,outline:"none",width:"100%" };
+  const inputS={ background:C.s2,border:`1px solid ${C.s3}`,borderRadius:14,padding:"9px 12px",fontSize:14,color:C.t1,fontFamily:FONT,outline:"none",width:"100%" };
   const numS={ ...inputS,textAlign:"center",padding:"8px 6px" };
 
   return (
@@ -1830,7 +1832,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
           Rutinas
         </button>
         <div style={{ display:"flex",alignItems:"center",gap:14 }}>
-          <div style={{ width:48,height:48,borderRadius:0,flexShrink:0,background:`${routine.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,letterSpacing:"0.08em",textTransform:"uppercase",color:routine.color }}>{routine.name.slice(0,4)}</div>
+          <div style={{ width:48,height:48,borderRadius:"50%",flexShrink:0,background:`${routine.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,letterSpacing:"0.08em",textTransform:"uppercase",color:routine.color }}>{routine.name.slice(0,4)}</div>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:22,fontWeight:900,color:C.t1,letterSpacing:"0.03em",fontFamily:FONT_DISPLAY,textTransform:"uppercase" }}>{routine.name}</div>
             <div style={{ fontSize:12,color:C.t2,marginTop:2 }}>{routine.duration} min · {total} ejercicios</div>
@@ -1839,8 +1841,8 @@ const ExerciseScreen = ({ routine, onBack }) => {
             <span style={{ fontSize:10,fontWeight:800,color:routine.color }}>{doneCount}/{total}</span>
           </Ring>
         </div>
-        <div style={{ marginTop:14,height:5,borderRadius:0,background:C.s3,overflow:"hidden" }}>
-          <div style={{ height:"100%",borderRadius:0,background:`linear-gradient(90deg,${routine.color},${routine.dark})`,width:`${pct*100}%`,transition:"width 0.5s cubic-bezier(.22,1,.36,1)" }}/>
+        <div style={{ marginTop:14,height:5,borderRadius:4,background:C.s3,overflow:"hidden" }}>
+          <div style={{ height:"100%",borderRadius:4,background:`linear-gradient(90deg,${routine.color},${routine.dark})`,width:`${pct*100}%`,transition:"width 0.5s cubic-bezier(.22,1,.36,1)" }}/>
         </div>
       </div>
 
@@ -1853,7 +1855,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
 
         {/* ── Add exercise panel ── */}
         {showAdd ? (
-          <div className="anim-slideDown" style={{ background:C.s1,borderRadius:0,marginBottom:10,border:`1.5px solid ${routine.color}30`,overflow:"hidden" }}>
+          <div className="anim-slideDown" style={{ background:C.s1,borderRadius:20,marginBottom:10,border:`1.5px solid ${routine.color}30`,overflow:"hidden" }}>
 
             {/* Mode toggle tabs */}
             <div style={{ display:"flex",borderBottom:`1px solid ${C.s3}` }}>
@@ -1887,19 +1889,19 @@ const ExerciseScreen = ({ routine, onBack }) => {
                   )}
                   {filteredPresets.map((ex,i)=>(
                     <div key={i} className="pressable" onClick={()=>addExercise(ex)}
-                      style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:0,background:C.s2,border:`1px solid ${C.s3}`,cursor:"pointer",transition:"background 0.15s" }}>
-                      <div style={{ width:32,height:32,borderRadius:0,background:`${ex._routineColor}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:ex._routineColor,flexShrink:0 }}>{ex._routineName.slice(0,3).toUpperCase()}</div>
+                      style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:16,background:C.s2,border:`1px solid ${C.s3}`,cursor:"pointer",transition:"background 0.15s" }}>
+                      <div style={{ width:32,height:32,borderRadius:"50%",background:`${ex._routineColor}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:ex._routineColor,flexShrink:0 }}>{ex._routineName.slice(0,3).toUpperCase()}</div>
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ fontSize:13,fontWeight:700,color:C.t1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</div>
                         <div style={{ fontSize:10,color:C.t3,marginTop:1 }}>{ex.muscle||""}{ex.machine!=null&&ex.machine>0?` · Máq. ${ex.machine}`:""} · {ex.sets}×{ex.reps} · {ex.weight}kg</div>
                       </div>
-                      <div style={{ width:26,height:26,borderRadius:0,background:routine.color,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                      <div style={{ width:26,height:26,borderRadius:"50%",background:routine.color,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
                         <span style={{ color:"#fff",fontSize:16,lineHeight:1,marginTop:-1 }}>+</span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <button onClick={()=>setShowAdd(false)} style={{ marginTop:12,width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:0,padding:"10px",fontSize:13,fontWeight:600,color:C.t2,cursor:"pointer",fontFamily:FONT }}>Cancelar</button>
+                <button onClick={()=>setShowAdd(false)} style={{ marginTop:12,width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:16,padding:"10px",fontSize:13,fontWeight:600,color:C.t2,cursor:"pointer",fontFamily:FONT }}>Cancelar</button>
               </div>
             ) : (
               <div style={{ padding:"14px" }}>
@@ -1917,15 +1919,15 @@ const ExerciseScreen = ({ routine, onBack }) => {
                   ))}
                 </div>
                 <div style={{ display:"flex",gap:8 }}>
-                  <button onClick={()=>setShowAdd(false)} style={{ flex:1,background:C.s2,border:`1px solid ${C.s3}`,borderRadius:0,padding:"10px",fontSize:13,fontWeight:600,color:C.t2,cursor:"pointer",fontFamily:FONT }}>Cancelar</button>
-                  <button className="pressable" onClick={handleAddCustom} style={{ flex:2,background:routine.color,border:"none",borderRadius:0,padding:"10px",fontSize:13,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT,boxShadow:`0 4px 14px ${routine.color}50` }}>Añadir</button>
+                  <button onClick={()=>setShowAdd(false)} style={{ flex:1,background:C.s2,border:`1px solid ${C.s3}`,borderRadius:16,padding:"10px",fontSize:13,fontWeight:600,color:C.t2,cursor:"pointer",fontFamily:FONT }}>Cancelar</button>
+                  <button className="pressable" onClick={handleAddCustom} style={{ flex:2,background:routine.color,border:"none",borderRadius:16,padding:"10px",fontSize:13,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:FONT,boxShadow:`0 4px 14px ${routine.color}50` }}>Añadir</button>
                 </div>
               </div>
             )}
           </div>
         ) : (
           <button className="pressable" onClick={()=>{ setShowAdd(true); setAddMode("preset"); }}
-            style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"none",border:`1.5px dashed ${C.s4}`,borderRadius:0,padding:"14px",fontSize:13,fontWeight:700,color:C.t3,cursor:"pointer",fontFamily:FONT,marginBottom:10 }}>
+            style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"none",border:`1.5px dashed ${C.s4}`,borderRadius:16,padding:"14px",fontSize:13,fontWeight:700,color:C.t3,cursor:"pointer",fontFamily:FONT,marginBottom:10 }}>
             <span style={{ fontSize:18,lineHeight:1 }}>+</span> Agregar ejercicio
           </button>
         )}
@@ -1935,7 +1937,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
             
             <div style={{ fontSize:28,fontWeight:900,color:C.t1,letterSpacing:"0.04em",fontFamily:FONT_DISPLAY,textTransform:"uppercase" }}>¡Rutina completada!</div>
             <div style={{ fontSize:14,color:C.t2,marginTop:6 }}>Más fuertes juntos hoy</div>
-            <div style={{ marginTop:20,background:`linear-gradient(135deg,${routine.color},${routine.dark})`,borderRadius:0,padding:"18px",display:"flex",gap:24,justifyContent:"center",boxShadow:`0 12px 40px ${routine.color}35` }}>
+            <div style={{ marginTop:20,background:`linear-gradient(135deg,${routine.color},${routine.dark})`,borderRadius:20,padding:"18px",display:"flex",gap:24,justifyContent:"center",boxShadow:`0 12px 40px ${routine.color}35` }}>
               {[
                 { label:"Tiempo",val:`${routine.duration} min` },
                 { label:"Sets",val:`${exercises.reduce((a,e)=>a+(e.sets||0),0)}` },
@@ -1947,7 +1949,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
                 </div>
               ))}
             </div>
-            <button className="pressable" onClick={onBack} style={{ marginTop:16,background:C.s1,border:`1px solid ${C.s3}`,borderRadius:0,padding:"12px 32px",fontSize:14,fontWeight:700,color:C.t1,cursor:"pointer",fontFamily:FONT }}>Volver a rutinas</button>
+            <button className="pressable" onClick={onBack} style={{ marginTop:16,background:C.s1,border:`1px solid ${C.s3}`,borderRadius:16,padding:"12px 32px",fontSize:14,fontWeight:700,color:C.t1,cursor:"pointer",fontFamily:FONT }}>Volver a rutinas</button>
           </div>
         )}
       </div>
@@ -2069,17 +2071,17 @@ const ExitConfirmModal = ({ onConfirm, onCancel }) => (
       style={{
         width:"100%", maxWidth:480,
         background:C.s1,
-        borderRadius:0,
+        borderRadius:20,
         padding:"28px 24px 32px",
         boxShadow:"0 -12px 48px rgba(0,0,0,0.4)",
       }}
     >
       {/* Drag handle */}
-      <div style={{ width:36, height:4, borderRadius:0, background:C.s3, margin:"0 auto 22px" }}/>
+      <div style={{ width:36, height:4, borderRadius:999, background:C.s3, margin:"0 auto 22px" }}/>
 
       {/* Icon */}
       <div style={{
-        width:56, height:56, borderRadius:0, margin:"0 auto 16px",
+        width:56, height:56, borderRadius:"50%", margin:"0 auto 16px",
         background:C.pinkS,
         border:`1.5px solid ${C.pink}40`,
         display:"flex", alignItems:"center", justifyContent:"center",
@@ -2106,7 +2108,7 @@ const ExitConfirmModal = ({ onConfirm, onCancel }) => (
           className="pressable"
           onClick={onConfirm}
           style={{
-            width:"100%", padding:"14px", border:"none", borderRadius:0,
+            width:"100%", padding:"14px", border:"none", borderRadius:20,
             background:`linear-gradient(135deg,${C.accent},${C.accentD})`,
             color:"#fff", fontSize:15, fontWeight:700,
             cursor:"pointer", fontFamily:FONT,
@@ -2120,7 +2122,7 @@ const ExitConfirmModal = ({ onConfirm, onCancel }) => (
           onClick={onCancel}
           style={{
             width:"100%", padding:"14px", border:`1.5px solid ${C.s3}`,
-            borderRadius:0, background:C.s2,
+            borderRadius:20, background:C.s2,
             color:C.t2, fontSize:15, fontWeight:700,
             cursor:"pointer", fontFamily:FONT,
           }}
