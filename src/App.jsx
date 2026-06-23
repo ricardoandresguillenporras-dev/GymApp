@@ -762,8 +762,12 @@ const RoutinePickerModal = ({ routines, current, onSelect, onClose }) => {
   const pickedRoutine = routines.find(r=>r.id===pickedId) || routines[0];
 
   const handleConfirm = () => {
+    // Selecting is the caller's responsibility end-to-end, including
+    // dismissing the sheet afterwards — don't ALSO call onClose() here.
+    // Calling both would risk closing the modal twice (once via this
+    // component, once via whatever the caller's onSelect does), which
+    // pops two history entries instead of one.
     onSelect(pickedRoutine);
-    onClose();
   };
 
   return (
@@ -1663,7 +1667,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, style={} }) => {
           type={type}
           value={value}
           readOnly={!unlocked}
-          onChange={e=>unlocked && setter(e.target.value)}
+          onChange={e=>{ if(!unlocked) return; const v=e.target.value; setter(v===""?"":Number(v)); }}
           onBlur={()=>setUnlockedField(f=>f===label?null:f)}
           style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?accent:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlocked?"text":"pointer" }}
         />
@@ -1922,7 +1926,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
                   {[["Series",newSets,setNewSets],["Reps",newReps,setNewReps],["Peso kg",newWeight,setNewWeight]].map(([label,val,set])=>(
                     <div key={label} style={{ textAlign:"center" }}>
                       <div style={{ fontSize:9,fontWeight:700,color:C.t3,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4 }}>{label}</div>
-                      <input type="number" style={numS} value={val} onChange={e=>set(e.target.value)}/>
+                      <input type="number" style={numS} value={val} onChange={e=>{ const v=e.target.value; set(v===""?"":Number(v)); }}/>
                     </div>
                   ))}
                 </div>
@@ -2316,12 +2320,14 @@ export default function App() {
       {modal==="exitConfirm" && (
         <ExitConfirmModal onConfirm={confirmExit} onCancel={cancelExit}/>
       )}
-      {modal==="editProfile" && (
-        <EditProfileModal profile={profile} onSave={setProfile} onClose={closeModal}/>
-      )}
+      {/* "editProfile" modal removed: unreachable dead code — the profile
+          tab is commented out of TABS and nothing ever calls
+          openModal("editProfile"). EditProfileModal/ProfileScreen are kept
+          defined below in case the profile tab is reinstated later; wire
+          them back in deliberately rather than leaving an unused mount. */}
       {modal==="routinePicker" && (
         <RoutinePickerModal routines={routines} current={todayRoutine}
-          onSelect={(r)=>setTodayRoutine(r)}
+          onSelect={(r)=>{ setTodayRoutine(r); dismissModal(); }}
           onClose={dismissModal}/>
       )}
       {modal==="startConfirm" && (
