@@ -1,8 +1,0 @@
-{
-  "appId": "com.weliftogether.app",
-  "appName": "WeLiftTogether",
-  "webDir": "dist",
-  "android": {
-    "backgroundColor": "#F9F3EA"
-  }
-}

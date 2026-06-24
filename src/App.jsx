@@ -1,5 +1,198 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
+/* ── SUPABASE ──────────────────────────────────────────────────────────────
+   Inicialización del cliente Supabase. Las credenciales aquí son de prueba;
+   en producción se deben pasar como variables de entorno (VITE_SUPABASE_URL,
+   VITE_SUPABASE_ANON_KEY).
+   
+   Instalación:  npm install @supabase/supabase-js
+   
+   Esquema esperado (ejecutar en Supabase SQL Editor):
+     → Ver supabase/schema.sql en este repositorio
+   ─────────────────────────────────────────────────────────────────────── */
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL  = import.meta.env?.VITE_SUPABASE_URL  ?? "https://tvfkmvattmlfruajwdibg.supabase.co";
+const SUPABASE_ANON = import.meta.env?.VITE_SUPABASE_ANON ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2ZmttdmF0dG1sZnJ1andkaWJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzOTc4MjcsImV4cCI6MjA5Njk3MzgyN30.GL075MqrA1c1n1EfQfuT8gkYImkP7GrdFLZRTLhvE9I";
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+/* ── DB HELPERS ─────────────────────────────────────────────────────────── */
+
+/** Guarda una sesión de entrenamiento completada. */
+export const saveWorkoutSession = async (session) => {
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .insert([{
+      routine_id:    session.routineId,
+      routine_name:  session.routineName,
+      routine_color: session.routineColor,
+      duration_min:  session.durationMin,
+      exercises:     session.exercises,   // jsonb
+    }])
+    .select()
+    .single();
+  if (error) { console.error("saveWorkoutSession:", error.message); return null; }
+  return data;
+};
+
+/** Carga las últimas N sesiones del usuario. */
+export const loadWorkoutSessions = async (limit = 20) => {
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) { console.error("loadWorkoutSessions:", error.message); return []; }
+  return data ?? [];
+};
+
+/** Elimina una sesión por id. */
+export const deleteWorkoutSession = async (id) => {
+  const { error } = await supabase
+    .from("workout_sessions")
+    .delete()
+    .eq("id", id);
+  if (error) console.error("deleteWorkoutSession:", error.message);
+};
+
+/** Guarda / actualiza el listado de rutinas del usuario (upsert por id). */
+export const saveRoutines = async (routines) => {
+  const rows = routines.map(r => ({
+    id:         r.id,
+    name:       r.name,
+    sub:        r.sub,
+    emoji:      r.emoji ?? "",
+    color:      r.color,
+    dark:       r.dark,
+    duration:   r.duration,
+    difficulty: r.difficulty,
+    exercises:  r.exercises,  // jsonb
+  }));
+  const { error } = await supabase
+    .from("routines")
+    .upsert(rows, { onConflict: "id" });
+  if (error) console.error("saveRoutines:", error.message);
+};
+
+/** Carga las rutinas del usuario. */
+export const loadRoutines = async () => {
+  const { data, error } = await supabase
+    .from("routines")
+    .select("*")
+    .order("id");
+  if (error) { console.error("loadRoutines:", error.message); return null; }
+  return data?.length ? data.map(r => ({
+    ...r,
+    exercises: r.exercises ?? [],
+  })) : null;
+};
+
+/** Sube una foto de entrenamiento a Supabase Storage y guarda su URL. */
+export const uploadWorkoutPhoto = async (photo) => {
+  // Convertir dataURL a Blob
+  const res = await fetch(photo.dataURL);
+  const blob = await res.blob();
+  const path = `gym-photos/${photo.id}.jpg`;
+
+  const { error: upErr } = await supabase.storage
+    .from("gym-photos")
+    .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+  if (upErr) { console.error("uploadWorkoutPhoto storage:", upErr.message); return null; }
+
+  const { data: urlData } = supabase.storage.from("gym-photos").getPublicUrl(path);
+  const publicURL = urlData?.publicUrl ?? null;
+
+  const { data, error } = await supabase
+    .from("workout_photos")
+    .insert([{
+      storage_path: path,
+      public_url:   publicURL,
+      label:        photo.label,
+      who:          photo.who ?? "Tú",
+      routine_emoji: photo.emoji ?? "",
+      grad_a:       photo.gradA ?? null,
+      grad_b:       photo.gradB ?? null,
+    }])
+    .select()
+    .single();
+  if (error) console.error("uploadWorkoutPhoto insert:", error.message);
+  return data;
+};
+
+/** Carga todas las fotos guardadas. */
+export const loadWorkoutPhotos = async () => {
+  const { data, error } = await supabase
+    .from("workout_photos")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("loadWorkoutPhotos:", error.message); return []; }
+  return (data ?? []).map(row => ({
+    id:       row.id,
+    label:    row.label,
+    date:     new Date(row.created_at).toLocaleDateString("es-CR", { day:"numeric", month:"short" }),
+    who:      row.who,
+    gradA:    row.grad_a,
+    gradB:    row.grad_b,
+    emoji:    row.routine_emoji,
+    dataURL:  row.public_url,
+  }));
+};
+
+/** Elimina una foto de Storage y de la tabla. */
+export const deleteWorkoutPhoto = async (id) => {
+  // Primero obtenemos el path
+  const { data: row } = await supabase
+    .from("workout_photos")
+    .select("storage_path")
+    .eq("id", id)
+    .single();
+  if (row?.storage_path) {
+    await supabase.storage.from("gym-photos").remove([row.storage_path]);
+  }
+  const { error } = await supabase
+    .from("workout_photos")
+    .delete()
+    .eq("id", id);
+  if (error) console.error("deleteWorkoutPhoto:", error.message);
+};
+
+
+
+/* ── HAPTICS ──
+   Thin wrapper around @capacitor/haptics with navigator.vibrate fallback.
+   Impact levels map to physical sensation intensity:
+     light  → tap / selection feedback
+     medium → confirm / toggle
+     heavy  → success / destructive action
+   Notification types used for outcomes (success / warning / error).       */
+const haptic = (() => {
+  let _Haptics = null;
+  let _ImpactStyle = null;
+  let _NotificationType = null;
+
+  const load = () =>
+    _Haptics
+      ? Promise.resolve()
+      : import("@capacitor/haptics").then(m => {
+          _Haptics       = m.Haptics;
+          _ImpactStyle   = m.ImpactStyle;
+          _NotificationType = m.NotificationType;
+        }).catch(() => {});
+
+  const vib = (ms) => { try { navigator.vibrate?.(ms); } catch {} };
+
+  return {
+    light:   () => load().then(() => _Haptics?.impact({ style: _ImpactStyle?.Light   })).catch(() => vib(6)),
+    medium:  () => load().then(() => _Haptics?.impact({ style: _ImpactStyle?.Medium  })).catch(() => vib(12)),
+    heavy:   () => load().then(() => _Haptics?.impact({ style: _ImpactStyle?.Heavy   })).catch(() => vib(24)),
+    success: () => load().then(() => _Haptics?.notification({ type: _NotificationType?.Success })).catch(() => vib([10,40,10])),
+    warning: () => load().then(() => _Haptics?.notification({ type: _NotificationType?.Warning })).catch(() => vib([20,60,20])),
+    error:   () => load().then(() => _Haptics?.notification({ type: _NotificationType?.Error   })).catch(() => vib([30,80,30])),
+    select:  () => load().then(() => _Haptics?.selectionChanged?.()).catch(() => vib(4)),
+  };
+})();
+
 const C = {
   // Ground — Cotton Beige light base (80%)
   bg:      "#F9F3EA",       // Cotton Beige — main app ground
@@ -295,7 +488,7 @@ const TabBar = ({ active, onTab }) => {
         {TABS.map(t => {
           const isActive = active===t.id;
           return (
-            <button key={t.id} className="pressable" onClick={()=>onTab(t.id)}
+            <button key={t.id} className="pressable" onClick={()=>{ haptic.select(); onTab(t.id); }}
               style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",background:"none",border:"none",height:"100%",cursor:"pointer",zIndex:1 }}>
               <div style={{
                 width:44,height:44,borderRadius:22,
@@ -396,6 +589,13 @@ const writeManifest = async (Filesystem, Directory, list) => {
 };
 
 const loadStoredPhotos = async () => {
+  // 1️⃣ Try Supabase first
+  try {
+    const remote = await loadWorkoutPhotos();
+    if (remote && remote.length >= 0) return remote; // [] is valid empty state
+  } catch (_) { /* network error — fall through */ }
+
+  // 2️⃣ Capacitor native FS (offline / packaged app)
   const cap = await getCapacitorFS();
   if (cap) {
     const { Filesystem, Directory } = cap;
@@ -408,6 +608,7 @@ const loadStoredPhotos = async () => {
       } catch (e) { return p; }
     }));
   }
+  // 3️⃣ localStorage fallback (browser preview)
   try {
     const raw = localStorage.getItem(LOCAL_FALLBACK_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -415,6 +616,11 @@ const loadStoredPhotos = async () => {
 };
 
 const persistNewPhoto = async (photo) => {
+  // 1️⃣ Supabase Storage + DB (primary, fire-and-forget)
+  if (photo.dataURL) {
+    uploadWorkoutPhoto(photo).catch(err => console.warn("Supabase photo upload failed:", err));
+  }
+  // 2️⃣ Capacitor native FS (packaged app, offline-first)
   const cap = await getCapacitorFS();
   if (cap) {
     const { Filesystem, Directory } = cap;
@@ -427,6 +633,7 @@ const persistNewPhoto = async (photo) => {
     await writeManifest(Filesystem, Directory, manifest);
     return;
   }
+  // 3️⃣ localStorage fallback
   try {
     const raw = localStorage.getItem(LOCAL_FALLBACK_KEY);
     const list = raw ? JSON.parse(raw) : [];
@@ -436,6 +643,9 @@ const persistNewPhoto = async (photo) => {
 };
 
 const deleteStoredPhoto = async (id) => {
+  // 1️⃣ Supabase (primary)
+  deleteWorkoutPhoto(id).catch(err => console.warn("Supabase photo delete failed:", err));
+  // 2️⃣ Capacitor native FS
   const cap = await getCapacitorFS();
   if (cap) {
     const { Filesystem, Directory } = cap;
@@ -445,6 +655,7 @@ const deleteStoredPhoto = async (id) => {
     await writeManifest(Filesystem, Directory, manifest.filter(p => p.id !== id));
     return;
   }
+  // 3️⃣ localStorage fallback
   try {
     const raw = localStorage.getItem(LOCAL_FALLBACK_KEY);
     const list = raw ? JSON.parse(raw) : [];
@@ -636,13 +847,14 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
       }
       return;
     }
-    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    const t = setTimeout(() => { haptic.light(); setCountdown(c => c - 1); }, 1000);
     return () => clearTimeout(t);
   }, [countdown, facing]);
 
-  const shoot = () => setCountdown(3);
+  const shoot = () => { haptic.medium(); setCountdown(3); };
 
   const handleSave = () => {
+    haptic.success();
     onCapture({ dataURL: captured });
     onClose();
   };
@@ -788,10 +1000,14 @@ const RoutinePickerModal = ({ routines, current, onSelect, onClose }) => {
       const dist = Math.abs(cardCenter - trackCenter);
       if (dist < closestDist) { closestDist = dist; closestId = r.id; }
     }
-    if (closestId && closestId !== pickedId) setPickedId(closestId);
+    if (closestId && closestId !== pickedId) {
+      haptic.select();
+      setPickedId(closestId);
+    }
   }, [routines, pickedId]);
 
   const goToCard = useCallback((id) => {
+    haptic.select();
     setPickedId(id);
     const el = cardRefs.current[id];
     if (el) el.scrollIntoView({ behavior:"smooth", block:"nearest", inline:"center" });
@@ -800,6 +1016,7 @@ const RoutinePickerModal = ({ routines, current, onSelect, onClose }) => {
   const pickedRoutine = useMemo(() => routines.find(r=>r.id===pickedId) || routines[0], [routines, pickedId]);
 
   const handleConfirm = useCallback(() => {
+    haptic.medium();
     const r = routines.find(r=>r.id===pickedId) || routines[0];
     onSelect(r);
   }, [onSelect, routines, pickedId]);
@@ -1010,6 +1227,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
   },[todayRoutine]);
 
   const handleDeletePhoto=useCallback((photo)=>{
+    haptic.warning();
     setPhotos(prev=>prev.filter(p=>p.id!==photo.id));
     deleteStoredPhoto(photo.id);
     fireToast("Foto eliminada");
@@ -1214,11 +1432,13 @@ const ReplaceExerciseSheet = ({ targetEx, routineColor, onReplace, onClose }) =>
   }, [search]);
 
   const handlePickPreset = (ex) => {
+    haptic.medium();
     onReplace({ name:ex.name, muscle:ex.muscle||"", machine:ex.machine||0, sets:ex.sets, reps:ex.reps, weight:ex.weight });
   };
 
   const handleCustomSave = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) { haptic.error(); return; }
+    haptic.medium();
     onReplace({ name:name.trim(), muscle:muscle.trim(), machine:machine!==""?Number(machine):0, sets:Number(sets), reps:Number(reps), weight:Number(weight) });
   };
 
@@ -1349,18 +1569,20 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
   const [showAddEx, setShowAddEx] = useState(false);
   const [replacingExId, setReplacingExId] = useState(null); // _id of exercise being replaced
 
-  const removeEx = (id) => setExercises(prev=>prev.filter(e=>e._id!==id));
+  const removeEx = (id) => { haptic.warning(); setExercises(prev=>prev.filter(e=>e._id!==id)); };
   const replaceEx = (id, newEx) => {
     setExercises(prev => prev.map(e => e._id===id ? { ...newEx, _id:id } : e));
     setReplacingExId(null);
   };
   const addEx = () => {
-    if(!newExName.trim())return;
+    if(!newExName.trim()){ haptic.error(); return; }
+    haptic.light();
     setExercises(prev=>[...prev,{ name:newExName.trim(),sets:newExSets,reps:newExReps,weight:newExWeight,muscle:newExMuscle.trim(),_id:Date.now() }]);
     setNewExName(""); setNewExSets(3); setNewExReps(10); setNewExWeight(0); setNewExMuscle(""); setShowAddEx(false);
   };
 
   const handleSave = useCallback(() => {
+    haptic.success();
     onSave({ ...routine, name:name.trim()||routine.name, sub:sub.trim()||routine.sub, duration:Number(duration), difficulty, exercises:exercises.map(({_id,...e})=>e) });
     onClose();
   }, [onSave, onClose, routine, name, sub, duration, difficulty, exercises]);
@@ -1402,7 +1624,7 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
               <Label style={{ marginBottom:8 }}>Dificultad</Label>
               <div style={{ display:"flex",gap:4,marginTop:4 }}>
                 {[1,2,3,4,5].map(d=>(
-                  <div key={d} className="pressable" onClick={()=>setDifficulty(d)} style={{ height:28,flex:1,borderRadius:8,background:d<=difficulty?routine.color:C.s3,cursor:"pointer",transition:"background 0.2s" }}/>
+                  <div key={d} className="pressable" onClick={()=>{ haptic.select(); setDifficulty(d); }} style={{ height:28,flex:1,borderRadius:8,background:d<=difficulty?routine.color:C.s3,cursor:"pointer",transition:"background 0.2s" }}/>
                 ))}
               </div>
             </div>
@@ -1587,7 +1809,34 @@ const StatsScreen = () => {
   const [selectedDay,setSelectedDay]=useState(null);
   const [history,setHistory]=useState(SEED_HISTORY);
   const [expandedId,setExpandedId]=useState(null);
-  const deleteHistory = (id) => setHistory(prev=>prev.filter(h=>h.id!==id));
+  const [historyLoading,setHistoryLoading]=useState(true);
+
+  // Load real sessions from Supabase on mount; fall back to SEED_HISTORY
+  useEffect(()=>{
+    let mounted = true;
+    loadWorkoutSessions(50).then(rows => {
+      if (!mounted) return;
+      if (rows && rows.length > 0) {
+        const mapped = rows.map(r => ({
+          id:           r.id,
+          date:         new Date(r.created_at).toLocaleDateString("es-CR",{weekday:"short",day:"numeric",month:"short"}),
+          routineName:  r.routine_name,
+          routineColor: r.routine_color,
+          durationMin:  r.duration_min,
+          exercises:    r.exercises ?? [],
+        }));
+        setHistory(mapped);
+      }
+      setHistoryLoading(false);
+    }).catch(()=>setHistoryLoading(false));
+    return ()=>{ mounted=false; };
+  },[]);
+
+  const deleteHistory = async (id) => {
+    haptic.warning();
+    setHistory(prev=>prev.filter(h=>h.id!==id));
+    await deleteWorkoutSession(id).catch(err=>console.warn("deleteWorkoutSession:", err));
+  };
   const sheetRef = useRef(null);
   const startY = useRef(null);
   const currentY = useRef(0);
@@ -1935,11 +2184,14 @@ const SwapExerciseSheet = ({ targetEx, accent, onSwap, onClose }) => {
     );
   }, [search]);
 
-  const pickPreset = (ex) =>
+  const pickPreset = (ex) => {
+    haptic.medium();
     onSwap({ name:ex.name, muscle:ex.muscle||"", machine:ex.machine||0, sets:ex.sets, reps:ex.reps, weight:ex.weight });
+  };
 
   const saveCustom = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) { haptic.error(); return; }
+    haptic.medium();
     onSwap({ name:name.trim(), muscle:muscle.trim(), machine:machine!==""?Number(machine):0, sets:Number(sets), reps:Number(reps), weight:Number(weight) });
   };
 
@@ -2089,14 +2341,14 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
     onToggle && onToggle(next);
     if (collapseTimer.current) clearTimeout(collapseTimer.current);
     if (next) {
-      // Quick "pop" on the button itself, then let the person see the
-      // checkmark land before the card collapses
+      haptic.success();
       setPopping(true);
       if (popTimer.current) clearTimeout(popTimer.current);
       popTimer.current = setTimeout(() => setPopping(false), 150);
       collapseTimer.current = setTimeout(() => setExpanded(false), 80);
     } else {
-      setExpanded(true); // un-completing always re-opens the full card
+      haptic.light();
+      setExpanded(true);
     }
   };
 
@@ -2109,14 +2361,16 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
   // unlocks for editing — guards against accidental value changes from a
   // stray tap, without needing an awkward long-press.
   const handleChipTap = (label) => {
-    if (unlockedField === label) return; // already unlocked
+    if (unlockedField === label) return;
     if (tapTimers.current[label]) {
       clearTimeout(tapTimers.current[label]);
       tapTimers.current[label] = null;
+      haptic.medium();
       setUnlockedField(label);
       if (relockTimer.current) clearTimeout(relockTimer.current);
       relockTimer.current = setTimeout(() => setUnlockedField(null), 4000);
     } else {
+      haptic.light();
       tapTimers.current[label] = setTimeout(() => { tapTimers.current[label] = null; }, 350);
     }
   };
@@ -2296,12 +2550,14 @@ const ExerciseScreen = ({ routine, onBack }) => {
   // ── Swap exercise state ──
   const [swappingId, setSwappingId] = useState(null);
   const swapExercise = (id, newEx) => {
+    haptic.medium();
     setExercises(prev => prev.map(e => e._id === id ? { ...newEx, _id: id } : e));
     setSwappingId(null);
   };
 
   // ── Elapsed timer — starts when the screen mounts ──
   const [elapsed,setElapsed]=useState(0); // seconds
+  const [sessionSaved,setSessionSaved]=useState(false);
   useEffect(()=>{
     const id=setInterval(()=>setElapsed(s=>s+1),1000);
     return ()=>clearInterval(id);
@@ -2310,6 +2566,21 @@ const ExerciseScreen = ({ routine, onBack }) => {
   const total=exercises.length;
   const doneCount=doneSet.size;
   const pct=total>0?doneCount/total:0;
+
+  // Auto-save completed session to Supabase (fires once when all exercises done)
+  useEffect(()=>{
+    if (doneCount === total && total > 0 && !sessionSaved) {
+      setSessionSaved(true);
+      haptic.success();
+      saveWorkoutSession({
+        routineId:    routine.id,
+        routineName:  routine.name,
+        routineColor: routine.color,
+        durationMin:  Math.round(elapsed / 60),
+        exercises:    exercises.map(({ _id, ...rest }) => rest),
+      }).catch(err => console.warn("saveWorkoutSession:", err));
+    }
+  }, [doneCount, total, sessionSaved, routine, elapsed, exercises]);
 
   const handleToggle=(id,isDone)=>{
     setDoneSet(prev=>{
@@ -2688,6 +2959,19 @@ export default function App() {
   const [todayRoutine,setTodayRoutine]=useState(DEFAULT_ROUTINES[0]);
   const [profile,setProfile]=useState({ name:"Ricardo",partner:"Arline",emoji:"" });
 
+  // Load routines from Supabase on mount; keep DEFAULT_ROUTINES as fallback
+  useEffect(()=>{
+    let mounted = true;
+    loadRoutines().then(remote => {
+      if (!mounted) return;
+      if (remote && remote.length > 0) {
+        setRoutines(remote);
+        setTodayRoutine(remote[0]);
+      }
+    }).catch(()=>{});
+    return ()=>{ mounted=false; };
+  },[]);
+
   /* ── SCREEN STACK ──
      screen values: "home" | "routines" | "stats" | "exercise" | "editProfile"
      modal values (overlay over tabs): "startConfirm" | "routinePicker" | "lightbox"
@@ -2781,6 +3065,7 @@ export default function App() {
 
   /* ── NAV ACTIONS ── */
   const goTab = useCallback((id) => {
+    haptic.light();
     setTab(id);
     setScreen("tab");
     setModal(null);
@@ -2789,6 +3074,7 @@ export default function App() {
   }, [pushState]);
 
   const goExercise = useCallback((r) => {
+    haptic.medium();
     const target = r || routines[0];
     setActiveRoutine(target);
     setScreen("exercise");
@@ -2831,6 +3117,8 @@ export default function App() {
         const prevIdx = prev.findIndex(r => r.id === todayRoutine.id);
         setTodayRoutine(next[Math.min(prevIdx, next.length - 1)]);
       }
+      // Persist to Supabase (fire-and-forget)
+      saveRoutines(next).catch(err => console.warn("saveRoutines:", err));
       return next;
     });
   }, [todayRoutine.id]);
@@ -2839,16 +3127,15 @@ export default function App() {
   // Pop twice: once to get off the re-pushed root, once to reach the sentinel,
   // and a final go-back so Android closes the app naturally.
   const confirmExit = useCallback(() => {
+    haptic.heavy();
     setModal(null);
-    // Ask Capacitor to close the native app directly — deterministic on
-    // every Android version, unlike exhausting window.history and hoping
-    // the WebView's host activity decides to finish itself.
     import("@capacitor/app")
       .then(({ App: CapApp }) => CapApp.exitApp())
-      .catch(() => { window.history.go(-2); }); // browser preview fallback
+      .catch(() => { window.history.go(-2); });
   }, []);
 
   const cancelExit = useCallback(() => {
+    haptic.light();
     setModal(null);
     setModalData(null);
   }, []);
