@@ -48,7 +48,15 @@ jobs:
           VITE_SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON }}
 
       - name: Capacitor sync
-        run: npx cap sync android
+        run: |
+          set +e
+          npx cap sync android > sync-output.log 2>&1
+          code=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat sync-output.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat sync-output.log
+          exit $code
 
       - name: Reapply native manifest overrides
         run: cp android-overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
