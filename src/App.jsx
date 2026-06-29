@@ -2494,12 +2494,12 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
         <div style={{ display:"flex",gap:10,marginBottom:14 }}>
           {editableChip("Series", sets, setSets)}
           {editableChip("Reps", reps, setReps)}
-          {/* Dual weight display — side by side with a divider */}
-          <div style={{ flex:2,display:"flex",gap:0,borderRadius:20,overflow:"hidden",border:`1px solid ${done?accent+"40":C.s3}`,background:done?`${accent}10`:C.s2 }}>
-            {/* Person 1 weight */}
+          {/* Dual weight display — Él / Ella side by side */}
+          <div style={{ flex:2,display:"flex",borderRadius:20,overflow:"hidden",border:`1px solid ${done?`${accent}40`:C.s3}`,background:done?`${accent}10`:C.s2 }}>
+            {/* Él weight */}
             <div
-              style={{ flex:1,padding:"8px 4px",textAlign:"center",borderRight:`1px solid ${done?accent+"30":C.s3}`,opacity:unlockedField==="Peso 1"?1:0.85,border:unlockedField==="Peso 1"?`1px solid ${accent}50`:"none",borderRight:`1px solid ${done?accent+"30":C.s3}` }}
-              onClick={e=>{e.stopPropagation();handleChipTap("Peso 1");}}>
+              style={{ flex:1,padding:"8px 4px",textAlign:"center",borderRight:`1px solid ${done?`${accent}30`:C.s3}`,opacity:unlockedField==="Peso 1"?1:0.85,outline:unlockedField==="Peso 1"?`1.5px solid ${accent}`:undefined }}
+              onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 1"); }}>
               <div style={{ fontSize:8,fontWeight:700,color:accent,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3 }}>Él</div>
               <input
                 type="number"
@@ -2511,10 +2511,10 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
               />
               <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
             </div>
-            {/* Person 2 weight */}
+            {/* Ella weight */}
             <div
-              style={{ flex:1,padding:"8px 4px",textAlign:"center",opacity:unlockedField==="Peso 2"?1:0.85 }}
-              onClick={e=>{e.stopPropagation();handleChipTap("Peso 2");}}>
+              style={{ flex:1,padding:"8px 4px",textAlign:"center",opacity:unlockedField==="Peso 2"?1:0.85,outline:unlockedField==="Peso 2"?`1.5px solid ${C.pink}`:undefined }}
+              onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 2"); }}>
               <div style={{ fontSize:8,fontWeight:700,color:C.pink,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3 }}>Ella</div>
               <input
                 type="number"
@@ -2527,7 +2527,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
               <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
             </div>
           </div>
-        </div>
+        </div>>
 
         {/* Confirm button */}
         <button
