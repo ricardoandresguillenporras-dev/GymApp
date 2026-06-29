@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 /* ── SUPABASE ──────────────────────────────────────────────────────────────
    Inicialización del cliente Supabase. Las credenciales aquí son de prueba;
    en producción se deben pasar como variables de entorno (VITE_SUPABASE_URL,
-   VITE_SUPABASE_ANON_KEY).
+   VITE_SUPABASE_ANON).
    
    Instalación:  npm install @supabase/supabase-js
    
@@ -12,8 +12,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
    ─────────────────────────────────────────────────────────────────────── */
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL  = import.meta.env?.VITE_SUPABASE_URL      ?? "https://tvfkmvattmlfruajwdibg.supabase.co";
-const SUPABASE_ANON = import.meta.env?.VITE_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2ZmttdmF0dG1sZnJ1andkaWJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzOTc4MjcsImV4cCI6MjA5Njk3MzgyN30.GL075MqrA1c1n1EfQfuT8gkYImkP7GrdFLZRTLhvE9I";
+const SUPABASE_URL  = import.meta.env?.VITE_SUPABASE_URL      ?? "https://tvfkmvattmlfrujwdibg.supabase.co";
+const SUPABASE_ANON = import.meta.env?.VITE_SUPABASE_ANON ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2ZmttdmF0dG1sZnJ1andkaWJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzOTc4MjcsImV4cCI6MjA5Njk3MzgyN30.GL075MqrA1c1n1EfQfuT8gkYImkP7GrdFLZRTLhvE9I";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
