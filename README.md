@@ -1,53 +1,107 @@
-# WeLiftTogether
+# 💪 WeLiftTogether
 
-App de fitness para parejas: rutinas, seguimiento de sesiones, fotos de progreso y estadísticas. Construida con React + Vite y empaquetada como app nativa Android/iOS con Capacitor.
+A couples gym tracking app built with **React + Vite + Capacitor**, backed by **Supabase**.
 
 ## Stack
 
-- **React 18** + **Vite 5**
-- **Capacitor 6** — `@capacitor/app`, `@capacitor/haptics`, `@capacitor/filesystem`
-- **Supabase** — base de datos (Postgres) y Storage para fotos
+| Layer | Tech |
+|---|---|
+| UI | React 18 + Vite |
+| Native | Capacitor 6 (Android) |
+| Backend | Supabase (Postgres + Storage) |
+| Haptics | `@capacitor/haptics` |
+| Photos | `@capacitor/filesystem` + Supabase Storage |
+| CI/CD | GitHub Actions |
 
-## Desarrollo local
+## Features
+
+- 🏠 **Home** — Daily routine picker, profile photo, workout photo gallery
+- 💪 **Routines** — 3 pre-built routines (Piernas, Pecho, Brazos), fully editable
+- 📊 **Stats** — Weekly/monthly activity chart, workout history with Supabase sync
+- 📸 **Camera** — In-app camera with flip, flash, and countdown
+- 📳 **Haptics** — Full haptic feedback on every interaction
+- 🔄 **Swipe navigation** — Gesture-based tab switching
+- 🤖 **Android back button** — Native hardware back handled correctly
+
+## Quick Start
 
 ```bash
+# Install dependencies
 npm install
+
+# Run dev server
 npm run dev
-```
 
-Crea un archivo `.env.local` en la raíz con tus credenciales de Supabase:
-
-```
-VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON=tu-anon-key
-```
-
-Si no defines estas variables, la app usa unas credenciales de prueba embebidas como fallback — solo para desarrollo rápido, no usar en producción.
-
-## Base de datos
-
-El esquema completo (tablas `routines`, `workout_sessions`, `workout_photos`, políticas RLS y el bucket de Storage `gym-photos`) está en [`supabase/schema.sql`](./supabase/schema.sql). Ejecútalo una vez en el SQL Editor de tu proyecto Supabase antes de correr la app contra una base nueva.
-
-## Build nativo (Android/iOS)
-
-```bash
+# Build for production
 npm run build
-npx cap sync android   # o: npx cap sync ios
-npx cap open android   # abre Android Studio
+
+# Sync to Android
+npm run cap:sync
+
+# Open in Android Studio
+npm run cap:android
 ```
 
-`capacitor.config.ts` soporta live-reload contra tu servidor Vite local en desarrollo:
+## Environment Variables
 
-```bash
-CAP_DEV_SERVER_URL=http://192.168.1.XXX:5173 npx cap run android
+Create a `.env.local` file (never commit this):
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON=your-anon-key
 ```
 
-Sin esa variable, el build usa siempre el contenido empaquetado de `dist/` — nunca apunta a una máquina de desarrollo en producción.
+Add the same secrets to **GitHub → Settings → Secrets and variables → Actions**:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON`
 
-## CI
+## Database Setup
 
-`.github/workflows/android.yml` compila un APK de debug en cada push a `main` (artifact descargable desde la pestaña Actions). Para distribución real (Play Store o instalación firmada) falta configurar un keystore de release — ver sección de firma en `android/app/build.gradle`.
+Run `supabase/schema.sql` in your Supabase SQL Editor to create all required tables:
+- `routines` — user's workout routines
+- `workout_sessions` — completed session history
+- `workout_photos` — gym photo gallery
 
-## Haptic feedback
+Also create a **Storage bucket** named `gym-photos` (public).
 
-`src/App.jsx` incluye un wrapper (`haptic`) sobre `@capacitor/haptics` con fallback a `navigator.vibrate` cuando el plugin nativo no está disponible (ej. en navegador). Se usa en navegación entre tabs, confirmar/completar ejercicios, acciones destructivas (borrar foto, sesión, ejercicio) y diálogos de confirmación.
+## CI/CD Workflows
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | Push to `main`/`develop`, PRs | Lint + Vite build, uploads `dist/` artifact |
+| `deploy.yml` | Push to `main` | Deploys to GitHub Pages |
+| `android.yml` | Version tags (`v*.*.*`) or manual | Builds debug/release APK |
+
+### GitHub Pages Setup
+
+1. Go to **Settings → Pages**
+2. Set source to **GitHub Actions**
+3. Push to `main` — the `deploy.yml` workflow handles the rest
+
+### Android Release Signing
+
+For signed release APKs, add these secrets:
+- `KEYSTORE_FILE` — base64-encoded `.jks` keystore
+- `KEYSTORE_PASSWORD`
+- `KEY_ALIAS`
+- `KEY_PASSWORD`
+
+## Project Structure
+
+```
+├── src/
+│   ├── App.jsx          # Full app — all components in one file
+│   └── main.jsx         # React entry point
+├── supabase/
+│   └── schema.sql       # Database schema
+├── .github/
+│   └── workflows/
+│       ├── ci.yml       # Build & lint
+│       ├── deploy.yml   # GitHub Pages deploy
+│       └── android.yml  # APK build
+├── android/             # Capacitor Android project (after cap sync)
+├── index.html
+├── vite.config.js
+├── capacitor.config.json
+└── package.json
+```
