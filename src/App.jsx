@@ -2625,7 +2625,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
       })()}
       {/* Header */}
       <div style={{ padding:"16px 20px 14px",background:C.bg,borderBottom:`1px solid ${C.s3}`,flexShrink:0 }}>
-        <button className="pressable" onClick={onBack} style={{ background:"none",border:"none",display:"inline-flex",alignItems:"center",gap:5,color:C.t2,fontSize:13,fontWeight:600,cursor:"pointer",padding:"4px 10px 4px 4px",marginBottom:14,fontFamily:FONT,borderRadius:999,background:C.s2 }}>
+        <button className="pressable" onClick={onBack} style={{ background:C.s2,border:"none",display:"inline-flex",alignItems:"center",gap:5,color:C.t2,fontSize:13,fontWeight:600,cursor:"pointer",padding:"4px 10px 4px 4px",marginBottom:14,fontFamily:FONT,borderRadius:999 }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9L11 14" stroke={C.t2} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           Rutinas
         </button>
