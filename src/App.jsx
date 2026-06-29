@@ -1281,8 +1281,8 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
           {/* Start workout button — metallic gold */}
           <button className="pressable" onClick={onOpenStartConfirm}
             style={{
-              background:"linear-gradient(135deg,#2E7D52 0%,#3EA06A 45%,#256644 100%)",
-              border:"1px solid #3A8F5E",
+              background:`linear-gradient(135deg,${C.pink} 0%,${C.accent} 55%,${C.accentD} 100%)`,
+              border:`1px solid ${C.accent}`,
               borderRadius:20,
               padding:"15px 40px",
               fontSize:14,
@@ -1292,9 +1292,9 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
               fontFamily:FONT_DISPLAY,
               letterSpacing:"0.14em",
               textTransform:"uppercase",
-              boxShadow:"0 8px 28px rgba(46,125,82,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
+              boxShadow:`0 8px 28px ${C.pink}55, inset 0 1px 0 rgba(255,255,255,0.18)`,
               marginBottom:18,
-              textShadow:"0 1px 3px rgba(0,40,20,0.35)",
+              textShadow:"0 1px 3px rgba(80,30,0,0.35)",
             }}>
             INICIAR ENTRENAMIENTO
           </button>
@@ -2316,6 +2316,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
   const [done, setDone] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [weight, setWeight] = useState(ex.weight ?? 0);
+  const [weight2, setWeight2] = useState(ex.weight2 ?? ex.weight ?? 0);
   const [sets, setSets] = useState(ex.sets ?? 3);
   const [reps, setReps] = useState(ex.reps ?? 12);
   const [machine, setMachine] = useState(ex.machine ?? "");
@@ -2418,7 +2419,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
         <div style={{ flex:1,minWidth:0 }}>
           <div style={{ fontSize:14,fontWeight:700,color:accent,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",textDecoration:"line-through",textDecorationColor:`${accent}50`,textDecorationThickness:1.5 }}>{ex.name}</div>
         </div>
-        <div style={{ fontSize:11,color:C.t3,fontWeight:600,flexShrink:0 }}>{sets}×{reps} · {weight}kg</div>
+        <div style={{ fontSize:11,color:C.t3,fontWeight:600,flexShrink:0 }}>{sets}×{reps} · <span style={{color:accent}}>{weight}</span>/<span style={{color:C.pink}}>{weight2}</span>kg</div>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0,opacity:0.4 }}>
           <path d="M4 6L8 10L12 6" stroke={C.t3} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -2493,7 +2494,39 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
         <div style={{ display:"flex",gap:10,marginBottom:14 }}>
           {editableChip("Series", sets, setSets)}
           {editableChip("Reps", reps, setReps)}
-          {editableChip("Peso kg", weight, setWeight)}
+          {/* Dual weight display — side by side with a divider */}
+          <div style={{ flex:2,display:"flex",gap:0,borderRadius:20,overflow:"hidden",border:`1px solid ${done?accent+"40":C.s3}`,background:done?`${accent}10`:C.s2 }}>
+            {/* Person 1 weight */}
+            <div
+              style={{ flex:1,padding:"8px 4px",textAlign:"center",borderRight:`1px solid ${done?accent+"30":C.s3}`,opacity:unlockedField==="Peso 1"?1:0.85,border:unlockedField==="Peso 1"?`1px solid ${accent}50`:"none",borderRight:`1px solid ${done?accent+"30":C.s3}` }}
+              onClick={e=>{e.stopPropagation();handleChipTap("Peso 1");}}>
+              <div style={{ fontSize:8,fontWeight:700,color:accent,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3 }}>Él</div>
+              <input
+                type="number"
+                value={weight}
+                readOnly={unlockedField!=="Peso 1"}
+                onChange={e=>{ if(unlockedField!=="Peso 1") return; const v=e.target.value; setWeight(v===""?"":Number(v)); }}
+                onBlur={()=>setUnlockedField(f=>f==="Peso 1"?null:f)}
+                style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?accent:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlockedField==="Peso 1"?"text":"pointer" }}
+              />
+              <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
+            </div>
+            {/* Person 2 weight */}
+            <div
+              style={{ flex:1,padding:"8px 4px",textAlign:"center",opacity:unlockedField==="Peso 2"?1:0.85 }}
+              onClick={e=>{e.stopPropagation();handleChipTap("Peso 2");}}>
+              <div style={{ fontSize:8,fontWeight:700,color:C.pink,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3 }}>Ella</div>
+              <input
+                type="number"
+                value={weight2}
+                readOnly={unlockedField!=="Peso 2"}
+                onChange={e=>{ if(unlockedField!=="Peso 2") return; const v=e.target.value; setWeight2(v===""?"":Number(v)); }}
+                onBlur={()=>setUnlockedField(f=>f==="Peso 2"?null:f)}
+                style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?C.pink:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlockedField==="Peso 2"?"text":"pointer" }}
+              />
+              <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
+            </div>
+          </div>
         </div>
 
         {/* Confirm button */}
