@@ -2321,13 +2321,21 @@ const SwapExerciseSheet = ({ targetEx, accent, onSwap, onClose }) => {
 };
 
 /* ── EXERCISE ROW ── */
-const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
+const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, onUpdateExercise, style={} }) => {
   const [done, setDone] = useState(false);
   const [expanded, setExpanded] = useState(true);
-  const [weight, setWeight] = useState(ex.weight ?? 0);
-  const [sets, setSets] = useState(ex.sets ?? 3);
-  const [reps, setReps] = useState(ex.reps ?? 12);
+  const [weight, setWeightLocal] = useState(ex.weight ?? 0);
+  const [sets, setSetsLocal] = useState(ex.sets ?? 3);
+  const [reps, setRepsLocal] = useState(ex.reps ?? 12);
   const [machine, setMachine] = useState(ex.machine ?? "");
+  // Every edit updates this row's own display state immediately (so the
+  // input never feels laggy) AND tells the parent right away — the parent
+  // is what actually persists it (see ExerciseScreen's debounced save to
+  // routines). Without this, weight/sets/reps lived only in this row's
+  // local state and vanished the moment the screen unmounted.
+  const setWeight = (v) => { setWeightLocal(v); if (v !== "") onUpdateExercise?.(ex._id, "weight", v); };
+  const setSets   = (v) => { setSetsLocal(v);   if (v !== "") onUpdateExercise?.(ex._id, "sets", v); };
+  const setReps   = (v) => { setRepsLocal(v);   if (v !== "") onUpdateExercise?.(ex._id, "reps", v); };
   const [unlockedField, setUnlockedField] = useState(null); // which chip label is currently editable
   const [popping, setPopping] = useState(false);
   const tapTimers = useRef({});
@@ -2534,7 +2542,7 @@ const fmtElapsed = (s) => {
   return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 };
 
-const ExerciseScreen = ({ routine, onBack }) => {
+const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
   const [doneSet,setDoneSet]=useState(new Set());
   const [exercises,setExercises]=useState(routine.exercises.map((e,i)=>({ ...e, _id:`base-${i}` })));
   const [showAdd,setShowAdd]=useState(false);
@@ -2589,6 +2597,34 @@ const ExerciseScreen = ({ routine, onBack }) => {
       return next;
     });
   };
+
+  // Live edits to weight/sets/reps (via the double-tap chips in ExerciseRow)
+  // update this screen's own exercises state immediately...
+  const handleUpdateExercise = useCallback((id, field, value) => {
+    setExercises(prev => prev.map(e => e._id === id ? { ...e, [field]: value } : e));
+  }, []);
+
+  // ...and this debounced effect is what actually makes the change survive
+  // leaving the screen: it writes the updated exercises back onto the
+  // routine itself (not just the workout-session history), via the same
+  // onUpdateRoutines path RoutinesScreen already uses, which also persists
+  // to Supabase. Debounced so rapid edits (typing multiple digits) don't
+  // fire a write per keystroke.
+  const exercisesForSave = useRef(exercises);
+  exercisesForSave.current = exercises;
+  const hasMountedExForSave = useRef(false);
+  useEffect(() => {
+    if (!onUpdateRoutines) return;
+    if (!hasMountedExForSave.current) { hasMountedExForSave.current = true; return; }
+    const t = setTimeout(() => {
+      onUpdateRoutines(prevRoutines => prevRoutines.map(r =>
+        r.id === routine.id
+          ? { ...r, exercises: exercisesForSave.current.map(({ _id, ...rest }) => rest) }
+          : r
+      ));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [exercises, onUpdateRoutines, routine.id]);
 
   const addExercise=(ex)=>{
     setExercises(prev=>[...prev,{ ...ex, _id:`ex-${Date.now()}-${Math.random().toString(36).slice(2,8)}` }]);
@@ -2669,6 +2705,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
           <ExerciseRow key={ex._id} ex={ex} idx={i} accent={routine.color}
             onToggle={(isDone)=>handleToggle(ex._id,isDone)}
             onSwap={()=>setSwappingId(ex._id)}
+            onUpdateExercise={handleUpdateExercise}
             style={{ marginBottom:14 }}/>
         ))}
 
@@ -3175,7 +3212,7 @@ export default function App() {
 
       <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column" }}>
         {showExercise ? (
-          <ExerciseScreen routine={activeRoutine} onBack={goBack}/>
+          <ExerciseScreen routine={activeRoutine} onBack={goBack} onUpdateRoutines={handleUpdateRoutines}/>
         ) : (
           <SwipeTabContainer tab={tab} onTabChange={goTab}>
             <div style={{ width:`${TAB_W}%`, height:"100%", flexShrink:0, overflow:"hidden", display:"flex", flexDirection:"column" }}>
