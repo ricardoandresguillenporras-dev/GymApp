@@ -49,6 +49,9 @@ jobs:
       - name: Capacitor sync
         run: npx cap sync android
 
+      - name: Reapply native manifest overrides
+        run: cp android-overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+
       - name: Make Gradle executable
         run: chmod +x android/gradlew
 
