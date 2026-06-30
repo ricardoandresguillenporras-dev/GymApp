@@ -18,7 +18,7 @@ import {
    Backend completo: ver Code.gs en este repositorio.
    ─────────────────────────────────────────────────────────────────────── */
 
-const SHEETS_API_URL = "https://script.google.com/macros/s/TU_DEPLOYMENT_ID/exec";
+const SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbzEGveYhFot7W1e8_kMB1Jd7HAxsTk3l3AOKyY-1oKjsDLzkjGnbxssvBx1wgqoBEtUJQ/exec";
 
 async function sheetsGet(action, params = {}) {
   const url = new URL(SHEETS_API_URL);
