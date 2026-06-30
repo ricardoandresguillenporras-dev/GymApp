@@ -1710,13 +1710,10 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
                   {[1,2,3,4,5].map(d=><div key={d} style={{ height:4,flex:1,borderRadius:8,background:d<=r.difficulty?r.color:C.s3 }}/>)}
                 </div>
                 {/* Para quién — ambos entrenan esta rutina */}
-                <div style={{ display:"flex",gap:8,marginBottom:14 }}>
-                  {[["Él","Ricardo"],["Ella","Arline"]].map(([pron,nm])=>(
-                    <div key={pron} style={{ display:"flex",alignItems:"center",gap:5,background:`${r.color}14`,border:`1px solid ${r.color}35`,borderRadius:12,padding:"4px 9px" }}>
-                      <span style={{ fontSize:10,fontWeight:800,color:r.color,textTransform:"uppercase",letterSpacing:"0.04em" }}>{pron}</span>
-                      <span style={{ fontSize:10,fontWeight:600,color:C.t2 }}>· {nm}</span>
-                    </div>
-                  ))}
+                <div style={{ display:"inline-flex",alignItems:"center",gap:7,background:`${r.color}14`,border:`1px solid ${r.color}35`,borderRadius:14,padding:"5px 12px",marginBottom:14 }}>
+                  <span style={{ fontSize:11,fontWeight:700,color:C.t1 }}>Ricardo</span>
+                  <span style={{ display:"inline-flex",alignItems:"center",justifyContent:"center",width:15,height:15,borderRadius:"50%",background:r.color,color:"#fff",fontSize:10,fontWeight:900,lineHeight:1,flexShrink:0 }}>+</span>
+                  <span style={{ fontSize:11,fontWeight:700,color:C.t1 }}>Arline</span>
                 </div>
                 <div style={{ display:"flex",gap:12,justifyContent:"space-between",alignItems:"center" }}>
                   {[
@@ -2507,12 +2504,12 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={} }) 
         <div style={{ display:"flex",gap:10,marginBottom:14 }}>
           {editableChip("Series", sets, setSets)}
           {editableChip("Reps", reps, setReps)}
-          <div style={{ flex:2,display:"flex",borderRadius:20,overflow:"hidden",border:`1px solid ${done?`${accent}40`:C.s3}`,background:done?`${accent}10`:C.s2 }}>
+          <div style={{ flex:2,display:"flex",position:"relative",borderRadius:20,overflow:"hidden",border:`1px solid ${done?`${accent}40`:C.s3}`,background:done?`${accent}10`:C.s2 }}>
             <div
               style={{ flex:1,padding:"8px 4px",textAlign:"center",borderRight:`1px solid ${done?`${accent}30`:C.s3}`,opacity:unlockedField==="Peso 1"?1:0.85,outline:unlockedField==="Peso 1"?`1.5px solid ${accent}`:"none" }}
               onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 1"); }}
             >
-              <div style={{ fontSize:8,fontWeight:700,color:accent,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3 }}>Él</div>
+              <div style={{ fontSize:7.5,fontWeight:700,color:accent,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>Ricardo</div>
               <input
                 type="number"
                 value={weight}
@@ -2523,11 +2520,13 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={} }) 
               />
               <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
             </div>
+            {/* Stylized + badge centered on the divider between both weights */}
+            <div style={{ position:"absolute",left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:16,height:16,borderRadius:"50%",background:C.accent,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900,lineHeight:1,boxShadow:`0 1px 4px ${C.accent}60`,zIndex:1,pointerEvents:"none" }}>+</div>
             <div
               style={{ flex:1,padding:"8px 4px",textAlign:"center",opacity:unlockedField==="Peso 2"?1:0.85,outline:unlockedField==="Peso 2"?`1.5px solid ${C.pink}`:"none" }}
               onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 2"); }}
             >
-              <div style={{ fontSize:8,fontWeight:700,color:C.pink,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3 }}>Ella</div>
+              <div style={{ fontSize:7.5,fontWeight:700,color:C.pink,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>Arline</div>
               <input
                 type="number"
                 value={weight2}
