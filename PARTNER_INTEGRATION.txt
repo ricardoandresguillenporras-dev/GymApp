@@ -1,0 +1,111 @@
+This file documents every change to make in App.jsx.
+Apply them manually or run the integration instructions below.
+
+════════════════════════════════════════════════════════════════
+CHANGE 1 — Add imports at the very top (after the supabase import block)
+════════════════════════════════════════════════════════════════
+
+ADD after:  import { createClient } from "@supabase/supabase-js";
+
++import { PartnerSplash } from "./PartnerSplash";
++import {
++  SYNC_ID,
++  isPartnerSession,
++  currentSessionCode,
++  createPartnerCode,
++  leavePartnerSession,
++} from "./gymSessionId";
+
+
+════════════════════════════════════════════════════════════════
+CHANGE 2 — Scope all Supabase DB helpers to session_id
+════════════════════════════════════════════════════════════════
+
+In saveWorkoutSession, change the insert object to add:
+  session_id: SYNC_ID,
+
+In loadWorkoutSessions, add .eq("session_id", SYNC_ID) before .order():
+  .eq("session_id", SYNC_ID)
+
+In deleteWorkoutSession — no change needed (delete by UUID is safe).
+
+In saveRoutines, add to each row object:
+  session_id: SYNC_ID,
+
+In loadRoutines, add .eq("session_id", SYNC_ID) before .order():
+  .eq("session_id", SYNC_ID)
+
+In uploadWorkoutPhoto insert, add:
+  session_id: SYNC_ID,
+
+In loadWorkoutPhotos, add .eq("session_id", SYNC_ID) before .order():
+  .eq("session_id", SYNC_ID)
+
+
+════════════════════════════════════════════════════════════════
+CHANGE 3 — Add splash state + dismiss logic in the App() root
+════════════════════════════════════════════════════════════════
+
+Inside export default function App(), ADD after useGlobalStyles():
+
+  const SPLASH_KEY = 'wlt_splash_seen';
+  const [showSplash, setShowSplash] = useState(
+    !isPartnerSession() && !localStorage.getItem(SPLASH_KEY)
+  );
+  const handleSplashDismiss = () => {
+    localStorage.setItem(SPLASH_KEY, '1');
+    setShowSplash(false);
+  };
+
+
+════════════════════════════════════════════════════════════════
+CHANGE 4 — Render the splash modal in the JSX return
+════════════════════════════════════════════════════════════════
+
+In the return() of App(), ADD as the first child inside the outer <div>:
+
+  {showSplash && <PartnerSplash onDismiss={handleSplashDismiss} />}
+
+(Place it right above the existing {modal==="exitConfirm" && ...} line.)
+
+
+════════════════════════════════════════════════════════════════
+CHANGE 5 — Optional: show partner status in HomeScreen greeting
+════════════════════════════════════════════════════════════════
+
+In HomeScreen, the greeting section already has room for a small chip.
+Optionally show the active session code as a tiny badge:
+
+  {isPartnerSession() && (
+    <div style={{ fontSize:10, fontWeight:700, color:C.accent, marginTop:2, letterSpacing:'0.06em' }}>
+      🔗 {currentSessionCode()}
+    </div>
+  )}
+
+
+════════════════════════════════════════════════════════════════
+INTEGRATION INSTRUCTIONS
+════════════════════════════════════════════════════════════════
+
+1. Copy gymSessionId.js → src/gymSessionId.js
+2. Copy PartnerSplash.jsx → src/PartnerSplash.jsx
+3. Apply the 4 changes above to src/App.jsx
+4. Run the SQL in supabase/schema-partner.sql in your Supabase SQL editor
+5. npm run build && npx cap sync android
+
+The splash shows once when the app opens with no partner session active.
+After joining or creating a code, a window.location.reload() is triggered
+so the module-level SYNC_ID constant picks up the stored code.
+Subsequent opens skip the splash (localStorage key 'wlt_splash_seen').
+To show it again (e.g. to switch partner): clear 'wlt_splash_seen' from localStorage.
+
+════════════════════════════════════════════════════════════════
+AUTOMATIC RESET TRIGGER (optional quality-of-life)
+════════════════════════════════════════════════════════════════
+
+If you want the splash to re-appear when the user is NOT in a partner session
+(e.g. after leavePartnerSession()), simply remove the SPLASH_KEY check:
+
+  const [showSplash, setShowSplash] = useState(!isPartnerSession());
+
+This re-prompts every solo launch, which makes sense for a couples app.
