@@ -150,6 +150,11 @@ const haptic = (() => {
   let _ImpactStyle = null;
   let _NotificationType = null;
 
+  const HKEY = "wlt_haptics_enabled";
+  let enabled = (() => {
+    try { return localStorage.getItem(HKEY) !== "0"; } catch { return true; }
+  })();
+
   const load = () =>
     _Haptics
       ? Promise.resolve()
@@ -159,16 +164,21 @@ const haptic = (() => {
           _NotificationType = m.NotificationType;
         }).catch(() => {});
 
-  const vib = (ms) => { try { navigator.vibrate?.(ms); } catch {} };
+  const vib = (ms) => { if (!enabled) return; try { navigator.vibrate?.(ms); } catch {} };
+  // Wraps every haptic trigger so a single `enabled` flag silences all of
+  // them at once — used by the side rail's haptics switch.
+  const guarded = (fn) => (...args) => enabled ? fn(...args) : Promise.resolve();
 
   return {
-    light:   () => load().then(() => _Haptics?.impact({ style: _ImpactStyle?.Light   })).catch(() => vib(6)),
-    medium:  () => load().then(() => _Haptics?.impact({ style: _ImpactStyle?.Medium  })).catch(() => vib(12)),
-    heavy:   () => load().then(() => _Haptics?.impact({ style: _ImpactStyle?.Heavy   })).catch(() => vib(24)),
-    success: () => load().then(() => _Haptics?.notification({ type: _NotificationType?.Success })).catch(() => vib([10,40,10])),
-    warning: () => load().then(() => _Haptics?.notification({ type: _NotificationType?.Warning })).catch(() => vib([20,60,20])),
-    error:   () => load().then(() => _Haptics?.notification({ type: _NotificationType?.Error   })).catch(() => vib([30,80,30])),
-    select:  () => load().then(() => _Haptics?.selectionChanged?.()).catch(() => vib(4)),
+    light:   guarded(() => load().then(() => _Haptics?.impact({ style: _ImpactStyle?.Light   })).catch(() => vib(6))),
+    medium:  guarded(() => load().then(() => _Haptics?.impact({ style: _ImpactStyle?.Medium  })).catch(() => vib(12))),
+    heavy:   guarded(() => load().then(() => _Haptics?.impact({ style: _ImpactStyle?.Heavy   })).catch(() => vib(24))),
+    success: guarded(() => load().then(() => _Haptics?.notification({ type: _NotificationType?.Success })).catch(() => vib([10,40,10]))),
+    warning: guarded(() => load().then(() => _Haptics?.notification({ type: _NotificationType?.Warning })).catch(() => vib([20,60,20]))),
+    error:   guarded(() => load().then(() => _Haptics?.notification({ type: _NotificationType?.Error   })).catch(() => vib([30,80,30]))),
+    select:  guarded(() => load().then(() => _Haptics?.selectionChanged?.()).catch(() => vib(4))),
+    isEnabled: () => enabled,
+    setEnabled: (v) => { enabled = !!v; try { localStorage.setItem(HKEY, enabled ? "1" : "0"); } catch {} },
   };
 })();
 
@@ -486,6 +496,190 @@ const TabBar = ({ active, onTab }) => {
         })}
       </div>
     </div>
+  );
+};
+
+/* ── SIDE RAIL ──────────────────────────────────────────────────────────────
+   Minimal settings rail that stays fully hidden offscreen, leaving only a
+   tiny orange arrow tab poking out from the screen edge. Tapping it slides
+   in a slim panel with: a haptics on/off switch, a feedback bubble that
+   expands into a text box, and a placeholder "?" bubble reserved for a
+   future feature. */
+const SideRail = () => {
+  const [open, setOpen] = useState(false);
+  const [hapticsOn, setHapticsOn] = useState(haptic.isEnabled());
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [sent, setSent] = useState(false);
+  const PANEL_W = 222;
+
+  const toggleHaptics = () => {
+    const next = !hapticsOn;
+    haptic.setEnabled(next); // flip first so the confirming tick below still fires when turning back on
+    setHapticsOn(next);
+    if (next) haptic.select();
+  };
+
+  const submitFeedback = () => {
+    const trimmed = feedbackText.trim();
+    if (!trimmed) return;
+    try {
+      const KEY = "wlt_feedback_log";
+      const prev = JSON.parse(localStorage.getItem(KEY) || "[]");
+      prev.push({ text: trimmed, date: new Date().toISOString() });
+      localStorage.setItem(KEY, JSON.stringify(prev));
+    } catch {}
+    haptic.success();
+    setSent(true);
+    setFeedbackText("");
+    setTimeout(() => { setSent(false); setShowFeedback(false); }, 1500);
+  };
+
+  const bubbleBtn = (active) => ({
+    width: 40, height: 40, borderRadius: "50%",
+    background: active ? `linear-gradient(135deg,${C.pink},${C.accentD})` : C.s2,
+    border: `1px solid ${active ? C.accentD : C.s3}`,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    cursor: "pointer", flexShrink: 0, transition: "background 0.18s, border-color 0.18s",
+  });
+
+  return (
+    <>
+      {/* Tiny arrow tab — the only thing visible when the rail is closed */}
+      <button
+        className="pressable"
+        onClick={() => { haptic.select(); setOpen(o => !o); }}
+        aria-label={open ? "Cerrar panel" : "Abrir panel"}
+        style={{
+          position: "fixed", top: "50%", right: open ? PANEL_W : 0,
+          transform: "translateY(-50%)",
+          width: 24, height: 52,
+          borderRadius: "14px 0 0 14px",
+          background: `linear-gradient(135deg,${C.pink},${C.accentD})`,
+          border: "none",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 4px 16px rgba(45,31,15,0.28)",
+          cursor: "pointer", zIndex: 90,
+          transition: "right 0.28s cubic-bezier(.22,1,.36,1)",
+        }}
+      >
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .25s" }}>
+          <path d="M4 2L8 6L4 10" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {/* Tap-out backdrop */}
+      {open && (
+        <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(45,31,15,0.18)", zIndex: 88 }}/>
+      )}
+
+      {/* Panel — fully offscreen (right:-260px) when closed, so nothing peeks through */}
+      <div style={{
+        position: "fixed", top: 0, right: open ? 0 : -(PANEL_W + 40), height: "100dvh", width: PANEL_W,
+        background: C.bg, borderLeft: `1px solid ${C.s3}`,
+        boxShadow: open ? "-10px 0 36px rgba(45,31,15,0.22)" : "none",
+        zIndex: 89, transition: "right 0.28s cubic-bezier(.22,1,.36,1)",
+        display: "flex", flexDirection: "column", gap: 16,
+        padding: "max(24px,env(safe-area-inset-top,0px)) 16px 20px",
+        fontFamily: FONT, overflowY: "auto",
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.t3, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          Panel
+        </div>
+
+        {/* Haptics switch */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.s1, border: `1px solid ${C.s3}`, borderRadius: 16, padding: "10px 12px" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Vibración</div>
+            <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>Feedback háptico</div>
+          </div>
+          <button
+            onClick={toggleHaptics}
+            aria-label="Activar o desactivar la vibración"
+            style={{
+              width: 42, height: 24, borderRadius: 999, flexShrink: 0,
+              background: hapticsOn ? C.accent : C.s3,
+              border: "none", position: "relative", cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+          >
+            <div style={{
+              position: "absolute", top: 2, left: hapticsOn ? 20 : 2,
+              width: 20, height: 20, borderRadius: "50%", background: "#fff",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+              transition: "left 0.2s cubic-bezier(.34,1.56,.64,1)",
+            }}/>
+          </button>
+        </div>
+
+        {/* Feedback bubble */}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              className="pressable"
+              onClick={() => { haptic.select(); setShowFeedback(s => !s); }}
+              style={bubbleBtn(showFeedback)}
+              aria-label="Enviar feedback"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                  stroke={showFeedback ? "#fff" : C.t2} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Feedback</div>
+          </div>
+
+          {showFeedback && (
+            <div className="anim-slideDown" style={{ marginTop: 10 }}>
+              {sent ? (
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.accentD, background: `${C.accent}18`, border: `1px solid ${C.accent}40`, borderRadius: 14, padding: "10px 12px", textAlign: "center" }}>
+                  ¡Gracias por tu feedback! 🧡
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    value={feedbackText}
+                    onChange={e => setFeedbackText(e.target.value)}
+                    placeholder="¿Qué deberíamos mejorar?"
+                    rows={4}
+                    style={{ width: "100%", background: C.s2, border: `1px solid ${C.s3}`, borderRadius: 14, padding: "10px 12px", fontSize: 12, color: C.t1, fontFamily: FONT, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                  />
+                  <button
+                    className="pressable"
+                    onClick={submitFeedback}
+                    disabled={!feedbackText.trim()}
+                    style={{
+                      width: "100%", marginTop: 8, border: "none", borderRadius: 14, padding: "9px",
+                      background: feedbackText.trim() ? `linear-gradient(135deg,${C.pink},${C.accentD})` : C.s3,
+                      color: "#fff", fontSize: 12, fontWeight: 700,
+                      cursor: feedbackText.trim() ? "pointer" : "default", fontFamily: FONT,
+                    }}
+                  >
+                    Enviar
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Placeholder bubble — reserved for a future feature */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            className="pressable"
+            onClick={() => haptic.light()}
+            style={bubbleBtn(false)}
+            aria-label="Próximamente"
+          >
+            <span style={{ fontSize: 15, fontWeight: 900, color: C.t2 }}>?</span>
+          </button>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Próximamente</div>
+            <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>Aún sin función</div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 
@@ -3213,6 +3407,7 @@ export default function App() {
 
       {showSplash && <PartnerSplash onDismiss={handleSplashDismiss} />}
       {showPartnerManager && <PartnerCodeManager onClose={()=>setShowPartnerManager(false)} />}
+      <SideRail />
 
       {/* ── Root-level modals — outside SwipeTabContainer so fixed positioning is never clipped ── */}
       {modal==="exitConfirm" && (
