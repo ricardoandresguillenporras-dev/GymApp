@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 /* ── SUPABASE ──────────────────────────────────────────────────────────────
    Inicialización del cliente Supabase. Las credenciales aquí son de prueba;
    en producción se deben pasar como variables de entorno (VITE_SUPABASE_URL,
-   VITE_SUPABASE_ANON).
+   VITE_SUPABASE_ANON_KEY).
    
    Instalación:  npm install @supabase/supabase-js
    
@@ -12,8 +12,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
    ─────────────────────────────────────────────────────────────────────── */
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL  = import.meta.env?.VITE_SUPABASE_URL      ?? "https://tvfkmvattmlfrujwdibg.supabase.co";
-const SUPABASE_ANON = import.meta.env?.VITE_SUPABASE_ANON ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2ZmttdmF0dG1sZnJ1andkaWJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzOTc4MjcsImV4cCI6MjA5Njk3MzgyN30.GL075MqrA1c1n1EfQfuT8gkYImkP7GrdFLZRTLhvE9I";
+const SUPABASE_URL  = import.meta.env?.VITE_SUPABASE_URL      ?? "https://tvfkmvattmlfruajwdibg.supabase.co";
+const SUPABASE_ANON = import.meta.env?.VITE_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2ZmttdmF0dG1sZnJ1andkaWJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzOTc4MjcsImV4cCI6MjA5Njk3MzgyN30.GL075MqrA1c1n1EfQfuT8gkYImkP7GrdFLZRTLhvE9I";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -1281,8 +1281,8 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
           {/* Start workout button — metallic gold */}
           <button className="pressable" onClick={onOpenStartConfirm}
             style={{
-              background:`linear-gradient(135deg,${C.pink} 0%,${C.accent} 55%,${C.accentD} 100%)`,
-              border:`1px solid ${C.accent}`,
+              background:"linear-gradient(135deg,#2E7D52 0%,#3EA06A 45%,#256644 100%)",
+              border:"1px solid #3A8F5E",
               borderRadius:20,
               padding:"15px 40px",
               fontSize:14,
@@ -1292,9 +1292,9 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
               fontFamily:FONT_DISPLAY,
               letterSpacing:"0.14em",
               textTransform:"uppercase",
-              boxShadow:`0 8px 28px ${C.pink}55, inset 0 1px 0 rgba(255,255,255,0.18)`,
+              boxShadow:"0 8px 28px rgba(46,125,82,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
               marginBottom:18,
-              textShadow:"0 1px 3px rgba(80,30,0,0.35)",
+              textShadow:"0 1px 3px rgba(0,40,20,0.35)",
             }}>
             INICIAR ENTRENAMIENTO
           </button>
@@ -2316,7 +2316,6 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
   const [done, setDone] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [weight, setWeight] = useState(ex.weight ?? 0);
-  const [weight2, setWeight2] = useState(ex.weight2 ?? ex.weight ?? 0);
   const [sets, setSets] = useState(ex.sets ?? 3);
   const [reps, setReps] = useState(ex.reps ?? 12);
   const [machine, setMachine] = useState(ex.machine ?? "");
@@ -2419,7 +2418,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
         <div style={{ flex:1,minWidth:0 }}>
           <div style={{ fontSize:14,fontWeight:700,color:accent,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",textDecoration:"line-through",textDecorationColor:`${accent}50`,textDecorationThickness:1.5 }}>{ex.name}</div>
         </div>
-        <div style={{ fontSize:11,color:C.t3,fontWeight:600,flexShrink:0 }}>{sets}×{reps} · <span style={{color:accent}}>{weight}</span>/<span style={{color:C.pink}}>{weight2}</span>kg</div>
+        <div style={{ fontSize:11,color:C.t3,fontWeight:600,flexShrink:0 }}>{sets}×{reps} · {weight}kg</div>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0,opacity:0.4 }}>
           <path d="M4 6L8 10L12 6" stroke={C.t3} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -2494,40 +2493,8 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onSwap, style={} }) => {
         <div style={{ display:"flex",gap:10,marginBottom:14 }}>
           {editableChip("Series", sets, setSets)}
           {editableChip("Reps", reps, setReps)}
-          {/* Dual weight display — Él / Ella side by side */}
-          <div style={{ flex:2,display:"flex",borderRadius:20,overflow:"hidden",border:`1px solid ${done?`${accent}40`:C.s3}`,background:done?`${accent}10`:C.s2 }}>
-            {/* Él weight */}
-            <div
-              style={{ flex:1,padding:"8px 4px",textAlign:"center",borderRight:`1px solid ${done?`${accent}30`:C.s3}`,opacity:unlockedField==="Peso 1"?1:0.85,outline:unlockedField==="Peso 1"?`1.5px solid ${accent}`:undefined }}
-              onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 1"); }}>
-              <div style={{ fontSize:8,fontWeight:700,color:accent,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3 }}>Él</div>
-              <input
-                type="number"
-                value={weight}
-                readOnly={unlockedField!=="Peso 1"}
-                onChange={e=>{ if(unlockedField!=="Peso 1") return; const v=e.target.value; setWeight(v===""?"":Number(v)); }}
-                onBlur={()=>setUnlockedField(f=>f==="Peso 1"?null:f)}
-                style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?accent:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlockedField==="Peso 1"?"text":"pointer" }}
-              />
-              <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
-            </div>
-            {/* Ella weight */}
-            <div
-              style={{ flex:1,padding:"8px 4px",textAlign:"center",opacity:unlockedField==="Peso 2"?1:0.85,outline:unlockedField==="Peso 2"?`1.5px solid ${C.pink}`:undefined }}
-              onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 2"); }}>
-              <div style={{ fontSize:8,fontWeight:700,color:C.pink,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3 }}>Ella</div>
-              <input
-                type="number"
-                value={weight2}
-                readOnly={unlockedField!=="Peso 2"}
-                onChange={e=>{ if(unlockedField!=="Peso 2") return; const v=e.target.value; setWeight2(v===""?"":Number(v)); }}
-                onBlur={()=>setUnlockedField(f=>f==="Peso 2"?null:f)}
-                style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?C.pink:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlockedField==="Peso 2"?"text":"pointer" }}
-              />
-              <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
-            </div>
-          </div>
-        </div>>
+          {editableChip("Peso kg", weight, setWeight)}
+        </div>
 
         {/* Confirm button */}
         <button
@@ -2658,7 +2625,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
       })()}
       {/* Header */}
       <div style={{ padding:"16px 20px 14px",background:C.bg,borderBottom:`1px solid ${C.s3}`,flexShrink:0 }}>
-        <button className="pressable" onClick={onBack} style={{ background:C.s2,border:"none",display:"inline-flex",alignItems:"center",gap:5,color:C.t2,fontSize:13,fontWeight:600,cursor:"pointer",padding:"4px 10px 4px 4px",marginBottom:14,fontFamily:FONT,borderRadius:999 }}>
+        <button className="pressable" onClick={onBack} style={{ background:"none",border:"none",display:"inline-flex",alignItems:"center",gap:5,color:C.t2,fontSize:13,fontWeight:600,cursor:"pointer",padding:"4px 10px 4px 4px",marginBottom:14,fontFamily:FONT,borderRadius:999,background:C.s2 }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9L11 14" stroke={C.t2} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           Rutinas
         </button>
