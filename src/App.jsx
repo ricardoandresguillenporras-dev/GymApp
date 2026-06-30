@@ -687,6 +687,15 @@ const SideRail = () => {
 };
 
 /* ── DEFAULT ROUTINES (basadas en gym.pdf — pesos de Ricardo, nota con peso de Lin) ── */
+// Cycled for routines created by the user beyond the 3 defaults, so new
+// cards still get a distinct color/dark pairing instead of repeating one.
+const ROUTINE_COLOR_PALETTE = [
+  { color: C.accent,  dark: C.accentD },
+  { color: C.pink,    dark: C.pinkD   },
+  { color: C.accentL, dark: C.accent  },
+  { color: C.pinkD,   dark: C.accentD },
+];
+
 const DEFAULT_ROUTINES = [
   {
     id:1, name:"Día de Piernas", sub:"Cuádriceps · Isquios · Glúteos · Gemelos",
@@ -1822,7 +1831,7 @@ const ReplaceExerciseSheet = ({ targetEx, routineColor, onReplace, onClose }) =>
 };
 
 /* ── EDIT ROUTINE MODAL ── */
-const EditRoutineModal = ({ routine, onSave, onClose }) => {
+const EditRoutineModal = ({ routine, onSave, onClose, isNew=false }) => {
   const [name, setName] = useState(routine.name);
   const [sub, setSub] = useState(routine.sub);
   const [duration, setDuration] = useState(routine.duration);
@@ -1855,10 +1864,11 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
   };
 
   const handleSave = useCallback(() => {
+    if (isNew && !name.trim()) { haptic.error(); return; }
     haptic.success();
-    onSave({ ...routine, name:name.trim()||routine.name, sub:sub.trim()||routine.sub, duration:Number(duration), difficulty, exercises:exercises.map(({_id,...e})=>e) });
+    onSave({ ...routine, name:name.trim()||routine.name, sub:sub.trim()||routine.sub, duration:Number(duration)||routine.duration, difficulty, exercises:exercises.map(({_id,...e})=>e) });
     onClose();
-  }, [onSave, onClose, routine, name, sub, duration, difficulty, exercises]);
+  }, [onSave, onClose, routine, name, sub, duration, difficulty, exercises, isNew]);
 
   const inputStyle = useMemo(() => ({ width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:14,padding:"10px 14px",fontSize:14,color:C.t1,fontFamily:FONT,outline:"none" }), []);
   const smallInput = useMemo(() => ({ width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:14,padding:"8px 10px",fontSize:13,color:C.t1,fontFamily:FONT,outline:"none",textAlign:"center" }), []);
@@ -1885,8 +1895,8 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
       <div className="anim-slideUp" onClick={e=>e.stopPropagation()} style={{ width:"100%",maxWidth:480,overflowY:"auto",background:C.bg,borderRadius:"28px 28px 0 0",maxHeight:"92vh",paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
         <div style={{ position:"sticky",top:0,background:C.bg,padding:"16px 20px 14px",borderBottom:`1px solid ${C.s3}`,display:"flex",justifyContent:"space-between",alignItems:"center",zIndex:1 }}>
           <button onClick={onClose} style={{ background:"none",border:"none",color:C.t2,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT }}>Cancelar</button>
-          <div style={{ fontSize:16,fontWeight:800,color:C.t1 }}>Editar rutina</div>
-          <button onClick={handleSave} style={{ background:C.accent,border:"none",borderRadius:16,padding:"7px 16px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>Guardar</button>
+          <div style={{ fontSize:16,fontWeight:800,color:C.t1 }}>{isNew?"Nueva rutina":"Editar rutina"}</div>
+          <button onClick={handleSave} style={{ background:C.accent,border:"none",borderRadius:16,padding:"7px 16px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>{isNew?"Crear":"Guardar"}</button>
         </div>
 
         <div style={{ padding:"16px 20px" }}>
@@ -1974,13 +1984,32 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
 /* ── ROUTINES SCREEN ── */
 const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
   const [editingRoutine,setEditingRoutine]=useState(null);
+  const [isCreatingRoutine,setIsCreatingRoutine]=useState(false);
+
   const handleSave = (updated) => {
-    onUpdateRoutines(prev=>prev.map(r=>r.id===updated.id?updated:r));
+    if (isCreatingRoutine) {
+      onUpdateRoutines(prev=>[...prev, updated]);
+    } else {
+      onUpdateRoutines(prev=>prev.map(r=>r.id===updated.id?updated:r));
+    }
+  };
+  const closeEditor = () => { setEditingRoutine(null); setIsCreatingRoutine(false); };
+  const startNewRoutine = () => {
+    haptic.light();
+    const palette = ROUTINE_COLOR_PALETTE[routines.length % ROUTINE_COLOR_PALETTE.length];
+    setIsCreatingRoutine(true);
+    setEditingRoutine({
+      id: `routine-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+      name: "", sub: "", emoji: "",
+      color: palette.color, dark: palette.dark,
+      duration: 30, difficulty: 2,
+      exercises: [],
+    });
   };
 
   return (
     <>
-      {editingRoutine&&<EditRoutineModal routine={editingRoutine} onSave={handleSave} onClose={()=>setEditingRoutine(null)}/>}
+      {editingRoutine&&<EditRoutineModal routine={editingRoutine} onSave={handleSave} onClose={closeEditor} isNew={isCreatingRoutine}/>}
       <div style={{ flex:1,overflowY:"auto",background:C.bg,fontFamily:FONT }}>
         <div style={{ padding:"16px 22px 0" }}>
           <div style={{ fontSize:32,fontWeight:900,color:C.t1,letterSpacing:"-0.5px",marginBottom:4,fontFamily:FONT_SERIF }}>Rutinas</div>
@@ -2019,7 +2048,7 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
                     </div>
                   ))}
                   <div style={{ flex:1 }}/>
-                  <button className="pressable" onClick={(e)=>{e.stopPropagation();setEditingRoutine(r);}} style={{ background:C.s2,border:`1px solid ${C.s3}`,borderRadius:16,padding:"7px 13px",fontSize:11,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT,display:"flex",alignItems:"center",gap:4 }}>
+                  <button className="pressable" onClick={(e)=>{e.stopPropagation();setIsCreatingRoutine(false);setEditingRoutine(r);}} style={{ background:C.s2,border:`1px solid ${C.s3}`,borderRadius:16,padding:"7px 13px",fontSize:11,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT,display:"flex",alignItems:"center",gap:4 }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke={C.t2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke={C.t2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -2031,6 +2060,14 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
               </div>
             </div>
           ))}
+          <div
+            className="pressable"
+            onClick={startNewRoutine}
+            style={{ borderRadius:24,border:`2px dashed ${C.s4}`,background:"transparent",padding:"22px 20px",display:"flex",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer" }}
+          >
+            <span style={{ display:"flex",alignItems:"center",justifyContent:"center",width:22,height:22,borderRadius:"50%",background:C.s2,fontSize:14,fontWeight:900,lineHeight:1,color:C.t2 }}>+</span>
+            <span style={{ fontSize:14,fontWeight:700,color:C.t2,fontFamily:FONT }}>Agregar rutina</span>
+          </div>
         </div>
       </div>
     </>
