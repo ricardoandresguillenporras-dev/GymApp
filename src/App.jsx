@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { PartnerSplash, PartnerCodeManager } from "./PartnerSplash";
 import {
   SYNC_ID,
@@ -1862,7 +1863,13 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
   const inputStyle = useMemo(() => ({ width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:14,padding:"10px 14px",fontSize:14,color:C.t1,fontFamily:FONT,outline:"none" }), []);
   const smallInput = useMemo(() => ({ width:"100%",background:C.s2,border:`1px solid ${C.s3}`,borderRadius:14,padding:"8px 10px",fontSize:13,color:C.t1,fontFamily:FONT,outline:"none",textAlign:"center" }), []);
 
-  return (
+  // Rendered via portal directly under document.body: RoutinesScreen lives
+  // inside SwipeTabContainer's translateX(...) strip, and a CSS transform on
+  // an ancestor turns "position:fixed" into "fixed relative to that ancestor"
+  // instead of the viewport. Without the portal this modal gets sized/clipped
+  // against the 300%-wide swipe strip instead of the real screen — which is
+  // exactly the "se sale del tab y no se acomoda bien a la pantalla" bug.
+  return createPortal(
     <div className="anim-fadeIn" style={{ position:"fixed",inset:0,zIndex:260,background:"rgba(249,243,234,0.72)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",fontFamily:FONT }} onClick={onClose}>
       {replacingExId && (() => {
         const targetEx = exercises.find(e => e._id === replacingExId);
@@ -1959,7 +1966,8 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
           <div style={{ height:20 }}/>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -2388,8 +2396,14 @@ const StatsScreen = () => {
         })}
       </div>
 
-      {/* Day detail bottom sheet */}
-      {selectedDay!==null && (
+      {/* Day detail bottom sheet — portaled to document.body. StatsScreen lives
+          inside SwipeTabContainer's translateX(...) strip; a transform on an
+          ancestor makes "position:fixed" resolve against that ancestor instead
+          of the viewport, so the sheet was sizing/clipping against the 300%-wide
+          swipe strip rather than the real screen ("Minutos activos" box bug).
+          maxHeight + overflowY also guard against long exercise lists pushing
+          the sheet taller than the screen. */}
+      {selectedDay!==null && createPortal(
         <div className="anim-fadeIn" onClick={()=>setSelectedDay(null)}
           style={{ position:"fixed",inset:0,zIndex:250,background:"rgba(249,243,234,0.6)",backdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end",justifyContent:"center",fontFamily:FONT }}>
           <div
@@ -2399,9 +2413,9 @@ const StatsScreen = () => {
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
-            style={{ width:"100%",maxWidth:480,background:C.s1,borderRadius:"28px 28px 0 0",paddingBottom:"calc(28px + env(safe-area-inset-bottom,0px))",border:`1px solid ${C.s3}`,boxShadow:`0 -4px 32px rgba(0,151,167,0.2)`,touchAction:"none" }}>
+            style={{ width:"100%",maxWidth:480,maxHeight:"85vh",overflowY:"auto",background:C.s1,borderRadius:"28px 28px 0 0",paddingBottom:"calc(28px + env(safe-area-inset-bottom,0px))",border:`1px solid ${C.s3}`,boxShadow:`0 -4px 32px rgba(0,151,167,0.2)`,touchAction:"none" }}>
             {/* Drag handle */}
-            <div style={{ padding:"14px 0 8px",display:"flex",justifyContent:"center" }}>
+            <div style={{ padding:"14px 0 8px",display:"flex",justifyContent:"center",position:"sticky",top:0,background:C.s1,zIndex:1 }}>
               <div style={{ width:36,height:4,borderRadius:999,background:C.s4 }}/>
             </div>
             <div style={{ padding:"4px 22px 20px" }}>
@@ -2437,7 +2451,8 @@ const StatsScreen = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
