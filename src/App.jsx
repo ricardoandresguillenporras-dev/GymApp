@@ -453,10 +453,14 @@ const TabBar = ({ active, onTab }) => {
         border:"1px solid rgba(255,255,255,0.06)",
         position:"relative",
       }}>
-        {/* Sliding active pill */}
+        {/* Sliding active pill — centered on each tab's content-box slot.
+            (100% here resolves to the dark banner's full padding box, so we
+            subtract the 20px of left+right padding before dividing by tab
+            count, then re-add the 10px left padding and back off by half
+            the pill's own width to center it under the icon.) */}
         <div style={{
           position:"absolute",
-          left:`calc(${activeIdx} * (100% / ${TABS.length}) + 10px + (100% / ${TABS.length} - 44px) / 2)`,
+          left:`calc((100% - 20px) * (${activeIdx} + 0.5) / ${TABS.length} - 22px + 10px)`,
           width:44, height:44,
           borderRadius:22,
           background:`${C.accent}22`,
@@ -1702,8 +1706,17 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
                 </div>
               </div>
               <div style={{ padding:"16px 20px 20px" }}>
-                <div style={{ display:"flex",gap:4,marginBottom:16 }}>
+                <div style={{ display:"flex",gap:4,marginBottom:14 }}>
                   {[1,2,3,4,5].map(d=><div key={d} style={{ height:4,flex:1,borderRadius:8,background:d<=r.difficulty?r.color:C.s3 }}/>)}
+                </div>
+                {/* Para quién — ambos entrenan esta rutina */}
+                <div style={{ display:"flex",gap:8,marginBottom:14 }}>
+                  {[["Él","Ricardo"],["Ella","Arline"]].map(([pron,nm])=>(
+                    <div key={pron} style={{ display:"flex",alignItems:"center",gap:5,background:`${r.color}14`,border:`1px solid ${r.color}35`,borderRadius:12,padding:"4px 9px" }}>
+                      <span style={{ fontSize:10,fontWeight:800,color:r.color,textTransform:"uppercase",letterSpacing:"0.04em" }}>{pron}</span>
+                      <span style={{ fontSize:10,fontWeight:600,color:C.t2 }}>· {nm}</span>
+                    </div>
+                  ))}
                 </div>
                 <div style={{ display:"flex",gap:12,justifyContent:"space-between",alignItems:"center" }}>
                   {[
@@ -2581,6 +2594,9 @@ const ExerciseScreen = ({ routine, onBack }) => {
   // ── Elapsed timer — starts when the screen mounts ──
   const [elapsed,setElapsed]=useState(0); // seconds
   const [sessionSaved,setSessionSaved]=useState(false);
+  // Lets the user explicitly finish the routine via the bottom button,
+  // instead of only auto-completing once every exercise is checked off.
+  const [manualComplete,setManualComplete]=useState(false);
   useEffect(()=>{
     const id=setInterval(()=>setElapsed(s=>s+1),1000);
     return ()=>clearInterval(id);
@@ -2589,10 +2605,13 @@ const ExerciseScreen = ({ routine, onBack }) => {
   const total=exercises.length;
   const doneCount=doneSet.size;
   const pct=total>0?doneCount/total:0;
+  const isComplete=(doneCount===total&&total>0)||manualComplete;
 
-  // Auto-save completed session to Supabase (fires once when all exercises done)
+  // Auto-save completed session to Supabase (fires once, whether the
+  // routine finished because every exercise got checked off or because
+  // the user tapped "Finalizar rutina")
   useEffect(()=>{
-    if (doneCount === total && total > 0 && !sessionSaved) {
+    if (isComplete && !sessionSaved) {
       setSessionSaved(true);
       haptic.success();
       saveWorkoutSession({
@@ -2603,7 +2622,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
         exercises:    exercises.map(({ _id, ...rest }) => rest),
       }).catch(err => console.warn("saveWorkoutSession:", err));
     }
-  }, [doneCount, total, sessionSaved, routine, elapsed, exercises]);
+  }, [isComplete, sessionSaved, routine, elapsed, exercises]);
 
   const handleToggle=(id,isDone)=>{
     setDoneSet(prev=>{
@@ -2775,7 +2794,7 @@ const ExerciseScreen = ({ routine, onBack }) => {
           </button>
         )}
 
-        {doneCount===total&&total>0&&(
+        {isComplete&&(
           <div className="anim-slideUp" style={{ textAlign:"center",padding:"28px 20px 12px" }}>
             <div style={{ fontSize:28,fontWeight:900,color:C.t1,letterSpacing:"0.04em",fontFamily:FONT_DISPLAY,textTransform:"uppercase" }}>¡Rutina completada!</div>
             <div style={{ fontSize:14,color:C.t2,marginTop:6 }}>Más fuertes juntos hoy</div>
@@ -2795,6 +2814,21 @@ const ExerciseScreen = ({ routine, onBack }) => {
           </div>
         )}
       </div>
+
+      {/* ── Sticky footer — explicit "finish" action, doesn't require every
+          exercise to be checked off. Gives a clear, satisfying close to the
+          session instead of only completing implicitly. ── */}
+      {!isComplete && total>0 && (
+        <div style={{ flexShrink:0,padding:"12px 20px",paddingBottom:"calc(12px + env(safe-area-inset-bottom,0px))",background:C.bg,borderTop:`1px solid ${C.s3}` }}>
+          <button className="pressable" onClick={()=>{ haptic.success(); setManualComplete(true); }}
+            style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:`linear-gradient(135deg,${routine.color},${routine.dark})`,border:"none",borderRadius:18,padding:"15px",fontSize:14,fontWeight:800,color:"#fff",cursor:"pointer",fontFamily:FONT_DISPLAY,letterSpacing:"0.06em",textTransform:"uppercase",boxShadow:`0 8px 24px ${routine.color}50` }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M20 6L9 17L4 12" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {doneCount===total ? "Finalizar rutina" : `Finalizar rutina (${doneCount}/${total})`}
+          </button>
+        </div>
+      )}
     </div>
   );
 };
