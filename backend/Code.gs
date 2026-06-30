@@ -11,7 +11,10 @@
  * dispositivos con el mismo código de pareja compartan la misma data.
  *
  * DEPLOY:
- *   1. Extensiones → Apps Script en este Sheet
+ *   Spreadsheet destino: "Base de Datos Roles"
+ *   https://docs.google.com/spreadsheets/d/1VLm6y-cAGm_1E6-1KD5g6kL460jsZzhv42WVlSQY_PY
+ *
+ *   1. Abre ese Sheet → Extensiones → Apps Script
  *   2. Pega este código como Code.gs
  *   3. Deploy → New deployment → tipo "Web app"
  *      - Execute as: Me
