@@ -938,9 +938,11 @@ const PhotoCard = ({ photo, onTap }) => (
 
 /* ── CAMERA MODAL ── */
 const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
-  const videoRef   = useRef(null);
-  const canvasRef  = useRef(null);
-  const streamRef  = useRef(null);
+  const videoRef       = useRef(null);
+  const canvasRef      = useRef(null);
+  const streamRef      = useRef(null);
+  const startTokenRef  = useRef(0);   // invalidates stale/in-flight getUserMedia calls
+  const openTimeoutRef = useRef(null);
   const [ready,       setReady]       = useState(false);
   const [facing,      setFacing]      = useState("environment"); // "environment" = trasera, "user" = delantera
   const [flash,       setFlash]       = useState(false);
@@ -948,41 +950,120 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
   const [captured,    setCaptured]    = useState(null); // dataURL de la foto real
   const [camError,    setCamError]    = useState(null);
 
-  /* ── Arranca / reinicia stream ── */
-  const startStream = useCallback(async (facingMode) => {
+  /* ── Libera la cámara física (batería / luz de cámara) ── */
+  const stopStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 1280 } },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play();
-          setReady(true);
-        };
-      }
-    } catch (err) {
-      setCamError("No se pudo acceder a la cámara. Verifica los permisos.");
+      streamRef.current = null;
     }
   }, []);
+
+  /* ── Arranca / reinicia stream ──
+     - Pide resolución más baja (720) que abre notablemente más rápido que 1280
+       y es de sobra para el visor cuadrado + crop a JPEG.
+     - Usa facingMode "ideal" con fallbacks progresivos en vez de un constraint
+       estricto, para no fallar duro en cámaras únicas (ej. laptops) o demorar
+       reintentos.
+     - Usa un token de carrera: si llega un flip/cierre mientras getUserMedia
+       sigue pendiente, la respuesta tardía se descarta y su stream se cierra
+       de inmediato en vez de quedar fantasma encendido en segundo plano. */
+  const startStream = useCallback(async (facingMode) => {
+    const myToken = ++startTokenRef.current;
+    stopStream();
+    setCamError(null);
+    setReady(false);
+
+    if (openTimeoutRef.current) clearTimeout(openTimeoutRef.current);
+    openTimeoutRef.current = setTimeout(() => {
+      if (startTokenRef.current === myToken) {
+        setCamError("La cámara está tardando demasiado en abrir. Verifica los permisos e inténtalo de nuevo.");
+      }
+    }, 8000);
+
+    const attempts = [
+      { video: { facingMode: { ideal: facingMode }, width: { ideal: 720 }, height: { ideal: 720 } }, audio: false },
+      { video: { facingMode }, audio: false },
+      { video: true, audio: false }, // último recurso: cualquier cámara disponible
+    ];
+
+    let stream = null, lastErr = null;
+    for (const constraints of attempts) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        break;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+
+    // Una llamada más nueva (flip rápido) o el cierre del modal nos superó:
+    // descartamos esta respuesta y apagamos el stream que acabamos de abrir.
+    if (startTokenRef.current !== myToken) {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+    clearTimeout(openTimeoutRef.current);
+
+    if (!stream) {
+      setCamError(
+        lastErr?.name === "NotAllowedError"
+          ? "Permiso de cámara denegado. Actívalo en los ajustes de la app."
+          : lastErr?.name === "NotFoundError"
+          ? "No se encontró ninguna cámara en este dispositivo."
+          : "No se pudo acceder a la cámara. Verifica los permisos."
+      );
+      return;
+    }
+
+    streamRef.current = stream;
+    const video = videoRef.current;
+    if (!video) { stream.getTracks().forEach(t => t.stop()); return; }
+
+    const markReady = () => {
+      if (startTokenRef.current !== myToken) return;
+      setReady(true);
+    };
+    // Listener ANTES de asignar srcObject: en algunos WebViews de Android
+    // "loadedmetadata" dispara antes de que un onloadedmetadata asignado
+    // después exista, dejando el spinner girando para siempre.
+    video.addEventListener("loadedmetadata", function onMeta() {
+      video.removeEventListener("loadedmetadata", onMeta);
+      video.play().catch(() => {});
+      markReady();
+    });
+    video.srcObject = stream;
+    // Red de seguridad: si los metadatos ya estaban listos al asignar el
+    // listener (carrera rara pero real en WebView), igual marcamos ready.
+    if (video.readyState >= 1) markReady();
+  }, [stopStream]);
 
   useEffect(() => {
     startStream(facing);
     return () => {
-      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      startTokenRef.current++; // invalida cualquier getUserMedia todavía pendiente
+      if (openTimeoutRef.current) clearTimeout(openTimeoutRef.current);
+      stopStream();
     };
-  }, [facing, startStream]);
+  }, [facing, startStream, stopStream]);
+
+  // La cámara solo hace falta para el visor en vivo. En cuanto se captura una
+  // foto, se libera de inmediato en vez de seguir corriendo de fondo durante
+  // toda la pantalla de revisión (antes drenaba batería y dejaba el LED de
+  // cámara encendido innecesariamente).
+  useEffect(() => {
+    if (captured) stopStream();
+  }, [captured, stopStream]);
 
   /* ── Flip cámara ── */
   const handleFlip = () => {
-    setReady(false);
+    if (countdown !== null) return; // no permitir flip a mitad de cuenta regresiva
+    haptic.light();
     setFacing(f => f === "environment" ? "user" : "environment");
   };
+
+  /* ── Reintentar tras error, o repetir foto ── */
+  const handleRetry  = () => startStream(facing);
+  const handleRetake = () => { setCaptured(null); startStream(facing); }; // la cámara se había liberado tras capturar
 
   /* ── Captura al llegar a 0 ── */
   useEffect(() => {
@@ -1038,7 +1119,7 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
         <div style={{ fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.8)",background:"rgba(0,0,0,0.3)",borderRadius:999,padding:"5px 12px",backdropFilter:"blur(8px)" }}> Gym · Hoy</div>
         {/* Flip button */}
         {!captured && (
-          <button onClick={handleFlip} style={{ background:"rgba(255,255,255,0.15)",border:"none",borderRadius:"50%",width:38,height:38,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",backdropFilter:"blur(8px)" }}>
+          <button onClick={handleFlip} disabled={countdown !== null} style={{ background:"rgba(255,255,255,0.15)",border:"none",borderRadius:"50%",width:38,height:38,display:"flex",alignItems:"center",justifyContent:"center",cursor:countdown!==null?"not-allowed":"pointer",opacity:countdown!==null?0.4:1,backdropFilter:"blur(8px)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M20 7H4M4 7L8 3M4 7L8 11" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M4 17H20M20 17L16 13M20 17L16 21" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1060,17 +1141,17 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
 
         {/* Loader mientras abre cámara */}
         {!ready && !captured && !camError && (
-          <div style={{ position:"absolute",inset:0,background:"#F9F3EA",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14 }}>
+          <div style={{ position:"absolute",inset:0,background:"rgba(12,12,14,0.94)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14 }}>
             <div style={{ width:40,height:40,borderRadius:"50%",border:`3px solid ${C.accent}`,borderTopColor:"transparent",animation:"spin 0.8s linear infinite" }}/>
-            <div style={{ fontSize:12,color:"rgba(255,255,255,0.5)",fontWeight:600 }}>Abriendo cámara…</div>
+            <div style={{ fontSize:12,color:"rgba(255,255,255,0.55)",fontWeight:600 }}>Abriendo cámara…</div>
           </div>
         )}
 
-        {/* Error de permisos */}
+        {/* Error de permisos / cámara no disponible */}
         {camError && (
-          <div style={{ position:"absolute",inset:0,background:"#F9F3EA",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:24 }}>
-            
-            <div style={{ fontSize:13,color:"rgba(255,255,255,0.8)",fontWeight:600,textAlign:"center",lineHeight:1.5 }}>{camError}</div>
+          <div style={{ position:"absolute",inset:0,background:"rgba(12,12,14,0.96)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:24 }}>
+            <div style={{ fontSize:13,color:"rgba(255,255,255,0.85)",fontWeight:600,textAlign:"center",lineHeight:1.5 }}>{camError}</div>
+            <button onClick={handleRetry} style={{ background:C.accent,border:"none",borderRadius:12,padding:"9px 20px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>Reintentar</button>
           </div>
         )}
 
@@ -1128,7 +1209,7 @@ const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
 
         {/* Retake */}
         {captured ? (
-          <button onClick={()=>setCaptured(null)} style={{ width:52,height:52,borderRadius:"50%",background:"rgba(255,255,255,0.12)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",backdropFilter:"blur(8px)" }}>
+          <button onClick={handleRetake} style={{ width:52,height:52,borderRadius:"50%",background:"rgba(255,255,255,0.12)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",backdropFilter:"blur(8px)" }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M1 4v6h6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M3.51 15a9 9 0 1 0 .49-4.95" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
