@@ -231,7 +231,7 @@ export function PartnerSplash({ onDismiss }) {
                   cursor: 'pointer', fontFamily: FONT,
                 }}
               >
-                Continuar solo por ahora
+                No, continuar solo por ahora
               </button>
             </div>
           </>
@@ -405,6 +405,344 @@ export function PartnerSplash({ onDismiss }) {
                 }}
               >
                 Continuar solo
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── PartnerCodeManager ──────────────────────────────────────────────────────
+// The "check / enter / change ID" surface. Unlike PartnerSplash (shown once
+// at launch), this is opened on demand — e.g. from a header chip — so the
+// user can see their current session code at any time, copy/share it,
+// switch to a different partner's code, or leave the shared session.
+//
+// Usage:
+//   import { PartnerCodeManager } from './PartnerSplash';
+//   {showManager && <PartnerCodeManager onClose={() => setShowManager(false)} />}
+export function PartnerCodeManager({ onClose }) {
+  const [step, setStep] = useState('view');  // 'view' | 'join' | 'create'
+  const [code, setCode] = useState('');
+  const [joinErr, setJoinErr] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [newCode, setNewCode] = useState(null); // code freshly generated this session
+  const inputRef = useRef(null);
+
+  const partnerActive = isPartnerSession();
+  const activeCode = currentSessionCode();
+
+  useEffect(() => {
+    if (step === 'join') setTimeout(() => inputRef.current?.focus(), 200);
+  }, [step]);
+
+  const handleCopy = (value) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(value).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }).catch(() => {});
+    }
+  };
+
+  const handleShare = (value) => {
+    const msg = `¡Entrenemos juntos! Únete a mi sesión en WeLiftTogether con el código: ${value}`;
+    if (navigator.share) {
+      navigator.share({ text: msg }).catch(() => {});
+    } else {
+      handleCopy(value);
+    }
+  };
+
+  const handleCreate = () => {
+    const generated = createPartnerCode();
+    setNewCode(generated);
+    setStep('create');
+  };
+
+  const handleEnterWithNewCode = () => {
+    window.location.reload();
+  };
+
+  const handleJoin = () => {
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) { setJoinErr('Ingresa un código primero'); return; }
+    if (trimmed === activeCode) { setJoinErr('Ya estás usando ese código'); return; }
+    const ok = joinPartnerSession(trimmed);
+    if (!ok) { setJoinErr('Código inválido'); return; }
+    window.location.reload();
+  };
+
+  const handleLeave = () => {
+    leavePartnerSession();
+    window.location.reload();
+  };
+
+  const inputStyle = {
+    width: '100%', background: C.s2, border: `1.5px solid ${joinErr ? '#E07070' : C.s3}`,
+    borderRadius: 16, padding: '14px 18px',
+    fontSize: 22, fontWeight: 900, color: C.t1,
+    fontFamily: 'monospace', letterSpacing: '0.06em',
+    textTransform: 'uppercase', outline: 'none',
+    textAlign: 'center', boxSizing: 'border-box',
+    transition: 'border-color 0.15s',
+  };
+
+  const primaryBtn = (extra = {}) => ({
+    width: '100%', border: 'none', borderRadius: 20, padding: '15px',
+    background: `linear-gradient(135deg,${C.pink},${C.accentD})`,
+    color: '#fff', fontSize: 15, fontWeight: 800,
+    cursor: 'pointer', fontFamily: FONT_DISPLAY,
+    letterSpacing: '0.08em', textTransform: 'uppercase',
+    boxShadow: `0 6px 22px ${C.pink}50`,
+    ...extra,
+  });
+
+  const ghostBtn = {
+    width: '100%', border: `1.5px solid ${C.s3}`, borderRadius: 20,
+    padding: '14px', background: C.s1,
+    color: C.t1, fontSize: 14, fontWeight: 700,
+    cursor: 'pointer', fontFamily: FONT,
+  };
+
+  return (
+    <div
+      className="anim-fadeIn"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 700,
+        background: 'rgba(45,31,15,0.72)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        fontFamily: FONT,
+        paddingBottom: 'env(safe-area-inset-bottom,0px)',
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose?.()}
+    >
+      <div
+        className="anim-slideUp"
+        style={{
+          width: '100%', maxWidth: 480,
+          background: C.bg,
+          borderRadius: '28px 28px 0 0',
+          padding: '0 24px 32px',
+          boxShadow: '0 -12px 56px rgba(0,0,0,0.45)',
+          border: `1px solid ${C.s3}`,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Drag handle + close */}
+        <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', padding: '14px 0 0' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: C.s4 }}/>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{
+              position: 'absolute', top: 8, right: 0,
+              width: 30, height: 30, borderRadius: '50%',
+              background: C.s2, border: `1px solid ${C.s3}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6L18 18M18 6L6 18" stroke={C.t2} strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* ── VIEW STEP — current ID + actions ── */}
+        {step === 'view' && (
+          <>
+            <div style={{ textAlign: 'center', padding: '18px 0 4px' }}>
+              <div style={{ marginBottom: 10 }}>
+                <DumbbellIcon size={40} color={C.accent}/>
+              </div>
+              <div style={{ fontSize: 19, fontWeight: 800, color: C.t1, marginBottom: 4 }}>
+                Tu ID de sesión
+              </div>
+              <div style={{ fontSize: 13, color: C.t2, lineHeight: 1.45, marginBottom: 18, padding: '0 6px' }}>
+                {partnerActive
+                  ? 'Estás en una sesión compartida — cualquiera con este código ve el mismo gym.'
+                  : 'Estás entrenando solo. Crea o ingresa un código para compartir tu progreso.'}
+              </div>
+
+              <div style={{
+                background: C.s1, border: `1.5px solid ${C.accent}50`,
+                borderRadius: 20, padding: '16px 18px', marginBottom: 16,
+              }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  fontSize: 11, fontWeight: 700, color: C.t3,
+                  letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8,
+                }}>
+                  {partnerActive ? (
+                    <>👥 Código compartido</>
+                  ) : (
+                    <>👤 ID individual</>
+                  )}
+                </div>
+                <div style={{
+                  fontSize: partnerActive ? 28 : 14, fontWeight: 900,
+                  color: partnerActive ? C.accent : C.t2,
+                  letterSpacing: '0.06em', fontFamily: 'monospace',
+                  wordBreak: 'break-all',
+                }}>
+                  {activeCode}
+                </div>
+                {partnerActive && (
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
+                    <button
+                      className="pressable"
+                      onClick={() => handleCopy(activeCode)}
+                      style={{
+                        border: `1px solid ${C.s3}`, borderRadius: 12, padding: '6px 12px',
+                        background: C.bg, color: C.t1, fontSize: 11, fontWeight: 700,
+                        cursor: 'pointer', fontFamily: FONT,
+                      }}
+                    >
+                      {copied ? '✓ Copiado' : '📋 Copiar'}
+                    </button>
+                    <button
+                      className="pressable"
+                      onClick={() => handleShare(activeCode)}
+                      style={{
+                        border: `1px solid ${C.s3}`, borderRadius: 12, padding: '6px 12px',
+                        background: C.bg, color: C.t1, fontSize: 11, fontWeight: 700,
+                        cursor: 'pointer', fontFamily: FONT,
+                      }}
+                    >
+                      ↗ Compartir
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {!partnerActive && (
+                <button className="pressable" onClick={handleCreate} style={primaryBtn()}>
+                  Crear código para compartir
+                </button>
+              )}
+              <button className="pressable" onClick={() => { setStep('join'); setJoinErr(''); setCode(''); }} style={ghostBtn}>
+                {partnerActive ? 'Cambiar a otro código' : 'Tengo un código — unirme'}
+              </button>
+              {partnerActive && (
+                <button
+                  onClick={handleLeave}
+                  style={{
+                    width: '100%', border: 'none', background: 'none',
+                    padding: '10px', borderRadius: 16,
+                    color: '#C0392B', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: FONT,
+                  }}
+                >
+                  Salir de la sesión compartida
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── JOIN STEP ── */}
+        {step === 'join' && (
+          <>
+            <div style={{ padding: '14px 0 8px' }}>
+              <button
+                onClick={() => setStep('view')}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  color: C.t3, fontSize: 13, fontWeight: 600, fontFamily: FONT,
+                  marginBottom: 16, padding: 0,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M10 4L6 8L10 12" stroke={C.t3} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Atrás
+              </button>
+
+              <div style={{ fontSize: 20, fontWeight: 800, color: C.t1, marginBottom: 6 }}>
+                {partnerActive ? 'Cambiar de sesión' : 'Unirse a una sesión'}
+              </div>
+              <div style={{ fontSize: 13, color: C.t2, marginBottom: 22, lineHeight: 1.5 }}>
+                Ingresa el código que te compartió tu compañero de gym.
+              </div>
+
+              <div style={{ marginBottom: 8 }}>
+                <input
+                  ref={inputRef}
+                  value={code}
+                  onChange={e => { setCode(e.target.value); setJoinErr(''); }}
+                  placeholder="GYM-7F3K"
+                  maxLength={9}
+                  style={inputStyle}
+                  onKeyDown={e => e.key === 'Enter' && handleJoin()}
+                />
+                {joinErr && (
+                  <div style={{ fontSize: 12, color: '#C0392B', fontWeight: 600, marginTop: 6, textAlign: 'center' }}>
+                    {joinErr}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button
+              className="pressable"
+              onClick={handleJoin}
+              style={primaryBtn({
+                background: code.trim() ? `linear-gradient(135deg,${C.pink},${C.accentD})` : C.s3,
+                cursor: code.trim() ? 'pointer' : 'default',
+                boxShadow: code.trim() ? `0 6px 22px ${C.pink}50` : 'none',
+                transition: 'background 0.2s, box-shadow 0.2s',
+              })}
+            >
+              Unirse
+            </button>
+          </>
+        )}
+
+        {/* ── CREATE STEP — new code generated ── */}
+        {step === 'create' && (
+          <>
+            <div style={{ textAlign: 'center', padding: '18px 0 8px' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%',
+                background: `${C.accent}18`,
+                border: `1.5px solid ${C.accent}40`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 14px',
+              }}>
+                <LinkIcon size={22} color={C.accent}/>
+              </div>
+              <div style={{ fontSize: 19, fontWeight: 800, color: C.t1, marginBottom: 6 }}>
+                ¡Nuevo código creado!
+              </div>
+              <div style={{ fontSize: 13, color: C.t2, lineHeight: 1.5, marginBottom: 18 }}>
+                Comparte este código con tu compañero para entrenar juntos.
+              </div>
+              <div style={{
+                background: C.s1, border: `1.5px solid ${C.accent}50`,
+                borderRadius: 20, padding: '18px 20px', marginBottom: 20,
+              }}>
+                <div style={{
+                  fontSize: 32, fontWeight: 900, color: C.accent,
+                  letterSpacing: '0.08em', fontFamily: 'monospace',
+                }}>
+                  {newCode}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button className="pressable" onClick={() => handleShare(newCode)} style={ghostBtn}>
+                {copied ? '✓ Copiado' : '📋 Compartir código'}
+              </button>
+              <button className="pressable" onClick={handleEnterWithNewCode} style={primaryBtn()}>
+                Entrar al gym juntos →
               </button>
             </div>
           </>

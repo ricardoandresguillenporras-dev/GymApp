@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { PartnerSplash } from "./PartnerSplash";
+import { PartnerSplash, PartnerCodeManager } from "./PartnerSplash";
 import {
   SYNC_ID,
   isPartnerSession,
@@ -1158,7 +1158,7 @@ const StartWorkoutModal = ({ routine, onConfirm, onClose }) => {
 };
 
 /* ── HOME SCREEN ── */
-const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRoutine, onOpenRoutinePicker, onOpenStartConfirm, onOpenLightbox, onGoStats, deletePhotoRef }) => {
+const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRoutine, onOpenRoutinePicker, onOpenStartConfirm, onOpenLightbox, onGoStats, deletePhotoRef, onOpenPartnerManager, partnerActive, partnerCode }) => {
   const [photos,setPhotos]=useState([]);
   const [photosLoading,setPhotosLoading]=useState(true);
   const [showCamera,setShowCamera]=useState(false);
@@ -1245,6 +1245,18 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
           </div> */}
         </div>
 
+        {/* Sesión / ID chip — toca para ver, cambiar o salir del código compartido */}
+        <button className="pressable" onClick={onOpenPartnerManager} style={{
+          display:"flex",alignItems:"center",gap:6,
+          background:partnerActive?`${C.accent}18`:C.s1,
+          border:`1px solid ${partnerActive?C.accent+"50":C.s3}`,
+          borderRadius:14,padding:"7px 12px",cursor:"pointer",fontFamily:FONT,
+        }}>
+          <span style={{ fontSize:13 }}>{partnerActive?"👥":"👤"}</span>
+          <span style={{ fontSize:11,fontWeight:700,color:partnerActive?C.accentD:C.t2,fontFamily:"monospace",letterSpacing:"0.03em" }}>
+            {partnerActive ? partnerCode : "Solo"}
+          </span>
+        </button>
       </div>
 
       {/* Bear Hero */}
@@ -2975,6 +2987,7 @@ export default function App() {
     localStorage.setItem(SPLASH_KEY, '1');
     setShowSplash(false);
   };
+  const [showPartnerManager, setShowPartnerManager] = useState(false);
   const [routines,setRoutines]=useState(DEFAULT_ROUTINES);
   const [todayRoutine,setTodayRoutine]=useState(DEFAULT_ROUTINES[0]);
   const [profile,setProfile]=useState({ name:"Ricardo",partner:"Arline",emoji:"" });
@@ -3166,6 +3179,7 @@ export default function App() {
     <div style={{ width:"100vw",height:"100dvh",background:C.bg,display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:FONT,paddingTop:"env(safe-area-inset-top,0px)" }}>
 
       {showSplash && <PartnerSplash onDismiss={handleSplashDismiss} />}
+      {showPartnerManager && <PartnerCodeManager onClose={()=>setShowPartnerManager(false)} />}
 
       {/* ── Root-level modals — outside SwipeTabContainer so fixed positioning is never clipped ── */}
       {modal==="exitConfirm" && (
@@ -3211,6 +3225,9 @@ export default function App() {
                 onChangeTodayRoutine={setTodayRoutine}
                 onGoStats={()=>goTab("stats")}
                 deletePhotoRef={homeDeletePhotoRef}
+                onOpenPartnerManager={()=>setShowPartnerManager(true)}
+                partnerActive={isPartnerSession()}
+                partnerCode={currentSessionCode()}
               />
             </div>
             <div style={{ width:`${TAB_W}%`, height:"100%", flexShrink:0, overflow:"hidden", display:"flex", flexDirection:"column" }}>
