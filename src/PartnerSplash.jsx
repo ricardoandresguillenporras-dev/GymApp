@@ -103,6 +103,7 @@ export function PartnerSplash({ onDismiss }) {
     if (!trimmed) { setJoinErr('Ingresa un código primero'); return; }
     const ok = joinPartnerSession(trimmed);
     if (!ok) { setJoinErr('Código inválido'); return; }
+    localStorage.setItem('wlt_splash_seen', '1');
     // Reload so SYNC_ID (computed once on module load) picks up the new code
     window.location.reload();
   };
@@ -112,6 +113,7 @@ export function PartnerSplash({ onDismiss }) {
   };
 
   const handleContinueWithCode = () => {
+    localStorage.setItem('wlt_splash_seen', '1');
     // Code was created and saved — reload so all DB calls use it
     window.location.reload();
   };
