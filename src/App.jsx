@@ -9,167 +9,131 @@ import {
   leavePartnerSession,
 } from "./gymSessionId";
 
-/* ── SUPABASE ──────────────────────────────────────────────────────────────
-   Inicialización del cliente Supabase. Las credenciales aquí son de prueba;
-   en producción se deben pasar como variables de entorno (VITE_SUPABASE_URL,
-   VITE_SUPABASE_ANON).
-   
-   Instalación:  npm install @supabase/supabase-js
-   
-   Esquema esperado (ejecutar en Supabase SQL Editor):
-     → Ver supabase/schema.sql en este repositorio
+/* ── SHEETS BACKEND — Google Apps Script + Google Sheets como base de datos ──
+   Reemplazo directo de Supabase. Las "tablas" son pestañas en un Spreadsheet,
+   las fotos se suben a una carpeta de Google Drive.
+
+   IMPORTANTE: reemplaza SHEETS_API_URL con la URL de tu Web App deployment
+   (Sheet → Extensiones → Apps Script → Deploy → New deployment → Web app).
+   Backend completo: ver Code.gs en este repositorio.
    ─────────────────────────────────────────────────────────────────────── */
-import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL  = import.meta.env?.VITE_SUPABASE_URL      ?? "https://tvfkmvattmlfrujwdibg.supabase.co";
-const SUPABASE_ANON = import.meta.env?.VITE_SUPABASE_ANON ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2ZmttdmF0dG1sZnJ1andkaWJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzOTc4MjcsImV4cCI6MjA5Njk3MzgyN30.GL075MqrA1c1n1EfQfuT8gkYImkP7GrdFLZRTLhvE9I";
+const SHEETS_API_URL = "https://script.google.com/macros/s/TU_DEPLOYMENT_ID/exec";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+async function sheetsGet(action, params = {}) {
+  const url = new URL(SHEETS_API_URL);
+  url.searchParams.set("action", action);
+  url.searchParams.set("session_id", currentSessionCode?.() ?? "default");
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString());
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json;
+}
 
-/* ── DB HELPERS ─────────────────────────────────────────────────────────── */
+async function sheetsPost(action, payload = {}) {
+  const res = await fetch(SHEETS_API_URL, {
+    method: "POST",
+    // Apps Script web apps quieren text/plain para evitar el preflight CORS
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action,
+      session_id: currentSessionCode?.() ?? "default",
+      ...payload,
+    }),
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json;
+}
 
 /** Guarda una sesión de entrenamiento completada. */
 export const saveWorkoutSession = async (session) => {
-  const { data, error } = await supabase
-    .from("workout_sessions")
-    .insert([{
-      session_id:    SYNC_ID,
-      routine_id:    session.routineId,
-      routine_name:  session.routineName,
-      routine_color: session.routineColor,
-      duration_min:  session.durationMin,
-      exercises:     session.exercises,   // jsonb
-    }])
-    .select()
-    .single();
-  if (error) { console.error("saveWorkoutSession:", error.message); return null; }
-  return data;
+  try {
+    return await sheetsPost("saveWorkoutSession", { session });
+  } catch (e) {
+    console.error("saveWorkoutSession:", e.message);
+    return null;
+  }
 };
 
 /** Carga las últimas N sesiones del usuario. */
 export const loadWorkoutSessions = async (limit = 20) => {
-  const { data, error } = await supabase
-    .from("workout_sessions")
-    .select("*")
-    .eq("session_id", SYNC_ID)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-  if (error) { console.error("loadWorkoutSessions:", error.message); return []; }
-  return data ?? [];
+  try {
+    return await sheetsGet("loadWorkoutSessions", { limit });
+  } catch (e) {
+    console.error("loadWorkoutSessions:", e.message);
+    return [];
+  }
 };
 
 /** Elimina una sesión por id. */
 export const deleteWorkoutSession = async (id) => {
-  const { error } = await supabase
-    .from("workout_sessions")
-    .delete()
-    .eq("id", id);
-  if (error) console.error("deleteWorkoutSession:", error.message);
+  try {
+    await sheetsPost("deleteWorkoutSession", { id });
+  } catch (e) {
+    console.error("deleteWorkoutSession:", e.message);
+  }
 };
 
-/** Guarda / actualiza el listado de rutinas del usuario (upsert por id). */
+/** Guarda / actualiza el listado de rutinas del usuario. */
 export const saveRoutines = async (routines) => {
-  const rows = routines.map(r => ({
-    id:         r.id,
-    session_id: SYNC_ID,
-    name:       r.name,
-    sub:        r.sub,
-    emoji:      r.emoji ?? "",
-    color:      r.color,
-    dark:       r.dark,
-    duration:   r.duration,
-    difficulty: r.difficulty,
-    exercises:  r.exercises,  // jsonb
-  }));
-  const { error } = await supabase
-    .from("routines")
-    .upsert(rows, { onConflict: "id" });
-  if (error) console.error("saveRoutines:", error.message);
+  try {
+    await sheetsPost("saveRoutines", { routines });
+  } catch (e) {
+    console.error("saveRoutines:", e.message);
+  }
 };
 
 /** Carga las rutinas del usuario. */
 export const loadRoutines = async () => {
-  const { data, error } = await supabase
-    .from("routines")
-    .select("*")
-    .eq("session_id", SYNC_ID)
-    .order("id");
-  if (error) { console.error("loadRoutines:", error.message); return null; }
-  return data?.length ? data.map(r => ({
-    ...r,
-    exercises: r.exercises ?? [],
-  })) : null;
+  try {
+    const data = await sheetsGet("loadRoutines");
+    return data?.length ? data : null;
+  } catch (e) {
+    console.error("loadRoutines:", e.message);
+    return null;
+  }
 };
 
-/** Sube una foto de entrenamiento a Supabase Storage y guarda su URL. */
+/** Sube una foto de entrenamiento (a Drive vía Apps Script) y guarda su metadata. */
 export const uploadWorkoutPhoto = async (photo) => {
-  // Convertir dataURL a Blob
-  const res = await fetch(photo.dataURL);
-  const blob = await res.blob();
-  const path = `gym-photos/${photo.id}.jpg`;
+  try {
+    const result = await sheetsPost("uploadWorkoutPhoto", { photo });
+    return result;
+  } catch (e) {
+    console.error("uploadWorkoutPhoto:", e.message);
+    return null;
+  }
+};
 
-  const { error: upErr } = await supabase.storage
-    .from("gym-photos")
-    .upload(path, blob, { contentType: "image/jpeg", upsert: true });
-  if (upErr) { console.error("uploadWorkoutPhoto storage:", upErr.message); return null; }
-
-  const { data: urlData } = supabase.storage.from("gym-photos").getPublicUrl(path);
-  const publicURL = urlData?.publicUrl ?? null;
-
-  const { data, error } = await supabase
-    .from("workout_photos")
-    .insert([{
-      session_id:   SYNC_ID,
-      storage_path: path,
-      public_url:   publicURL,
-      label:        photo.label,
-      who:          photo.who ?? "Tú",
-      routine_emoji: photo.emoji ?? "",
-      grad_a:       photo.gradA ?? null,
-      grad_b:       photo.gradB ?? null,
-    }])
-    .select()
-    .single();
-  if (error) console.error("uploadWorkoutPhoto insert:", error.message);
-  return data;
+/** Elimina una foto de Drive y de la hoja. */
+export const deleteWorkoutPhoto = async (id) => {
+  try {
+    await sheetsPost("deleteWorkoutPhoto", { id });
+  } catch (e) {
+    console.error("deleteWorkoutPhoto:", e.message);
+  }
 };
 
 /** Carga todas las fotos guardadas. */
 export const loadWorkoutPhotos = async () => {
-  const { data, error } = await supabase
-    .from("workout_photos")
-    .select("*")
-    .eq("session_id", SYNC_ID)
-    .order("created_at", { ascending: false });
-  if (error) { console.error("loadWorkoutPhotos:", error.message); return []; }
-  return (data ?? []).map(row => ({
-    id:       row.id,
-    label:    row.label,
-    date:     new Date(row.created_at).toLocaleDateString("es-CR", { day:"numeric", month:"short" }),
-    who:      row.who,
-    gradA:    row.grad_a,
-    gradB:    row.grad_b,
-    emoji:    row.routine_emoji,
-    dataURL:  row.public_url,
-  }));
-};
-
-/** Elimina una foto de Storage y de la tabla. */
-export const deleteWorkoutPhoto = async (id) => {
-  // Primero obtenemos el path
-  const { data: row } = await supabase
-    .from("workout_photos")
-    .select("storage_path")
-    .eq("id", id)
-    .single();
-  if (row?.storage_path) {
-    await supabase.storage.from("gym-photos").remove([row.storage_path]);
+  try {
+    const rows = await sheetsGet("loadWorkoutPhotos");
+    return (rows ?? []).map(row => ({
+      id:       row.id,
+      label:    row.label,
+      date:     new Date(row.created_at).toLocaleDateString("es-CR", { day: "numeric", month: "short" }),
+      who:      row.who,
+      gradA:    row.grad_a,
+      gradB:    row.grad_b,
+      emoji:    row.routine_emoji,
+      dataURL:  row.public_url, // ya es una URL pública de Drive, no base64
+    }));
+  } catch (e) {
+    console.error("loadWorkoutPhotos:", e.message);
+    return [];
   }
-  const { error } = await supabase
-    .from("workout_photos")
-    .delete()
-    .eq("id", id);
-  if (error) console.error("deleteWorkoutPhoto:", error.message);
 };
 
 

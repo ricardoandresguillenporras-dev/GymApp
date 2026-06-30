@@ -34,6 +34,3 @@ jobs:
 
       - name: Build (Vite)
         run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON }}
