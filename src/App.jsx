@@ -116,7 +116,9 @@ export const deleteWorkoutPhoto = async (id) => {
   }
 };
 
-/** Carga todas las fotos guardadas. */
+/** Carga todas las fotos guardadas. Devuelve `null` (en vez de []) si la
+ *  petición falla, para que el caller pueda distinguir "sin fotos" de
+ *  "no se pudo contactar al backend" y recurrir a su copia local. */
 export const loadWorkoutPhotos = async () => {
   try {
     const rows = await sheetsGet("loadWorkoutPhotos");
@@ -132,7 +134,7 @@ export const loadWorkoutPhotos = async () => {
     }));
   } catch (e) {
     console.error("loadWorkoutPhotos:", e.message);
-    return [];
+    return null;
   }
 };
 
@@ -766,11 +768,14 @@ const writeManifest = async (Filesystem, Directory, list) => {
 };
 
 const loadStoredPhotos = async () => {
-  // 1️⃣ Try Supabase first
-  try {
-    const remote = await loadWorkoutPhotos();
-    if (remote && remote.length >= 0) return remote; // [] is valid empty state
-  } catch (_) { /* network error — fall through */ }
+  // 1️⃣ Try the Sheets backend first
+  const remote = await loadWorkoutPhotos();
+  // `remote` is an array (possibly empty) on success, or `null` if the
+  // request failed — only trust it on success. Previously this checked
+  // `remote.length >= 0`, which is true for ANY array including [], so a
+  // transient network error (which still resolves to []) silently wiped
+  // the whole gallery instead of falling back to the device's own copy.
+  if (remote !== null) return remote;
 
   // 2️⃣ Capacitor native FS (offline / packaged app)
   const cap = await getCapacitorFS();
@@ -1838,7 +1843,13 @@ const EditRoutineModal = ({ routine, onSave, onClose }) => {
   const addEx = () => {
     if(!newExName.trim()){ haptic.error(); return; }
     haptic.light();
-    setExercises(prev=>[...prev,{ name:newExName.trim(),sets:newExSets,reps:newExReps,weight:newExWeight,muscle:newExMuscle.trim(),_id:Date.now() }]);
+    // Date.now() alone can collide if the user taps "Añadir" twice in quick
+    // succession (same millisecond) — two new exercises would end up with
+    // the same _id, so removing/replacing one would silently affect both
+    // (or the wrong one). Match the collision-resistant id already used for
+    // this exact purpose in ExerciseScreen's addExercise().
+    const newId = `ex-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+    setExercises(prev=>[...prev,{ name:newExName.trim(),sets:newExSets,reps:newExReps,weight:newExWeight,muscle:newExMuscle.trim(),_id:newId }]);
     setNewExName(""); setNewExSets(3); setNewExReps(10); setNewExWeight(0); setNewExMuscle(""); setShowAddEx(false);
   };
 
@@ -2019,21 +2030,24 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
 };
 
 /* ── STATS SCREEN ── */
-const DAY_EXERCISES = {
-  0: { day:"Lunes",    exercises:["Legcurl","Extensión de piernas","Hip abductor"],     minutes:18 },
-  1: { day:"Martes",   exercises:["Chest press","Pec Fly rear delta","Tronco","Abs"],   minutes:26 },
-  2: { day:"Miércoles",exercises:["Brazos","Brazos Peso Libre"],                         minutes:14 },
-  3: { day:"Jueves",   exercises:["Leg press","Sentadilla Asistida","Pantorrilla","Abductor","Lumbar"], minutes:32 },
-  4: { day:"Viernes",  exercises:["Chest press","Tronco","Abs","Lumbar"],               minutes:28 },
-  5: { day:"Sábado",   exercises:[],                                                     minutes:0  },
-  6: { day:"Domingo",  exercises:[],                                                     minutes:0  },
+// Helper for seed/demo data: an ISO timestamp N days before today, so the
+// placeholder history shown before any real session exists still lines up
+// with "this week" instead of carrying stale hardcoded dates.
+const daysAgo = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(12, 0, 0, 0);
+  return d.toISOString();
 };
+const fmtSeedDate = (iso) =>
+  new Date(iso).toLocaleDateString("es-CR", { weekday: "short", day: "numeric", month: "short" });
 
-/* ── WORKOUT HISTORY SEED DATA ── */
+/* ── WORKOUT HISTORY SEED DATA (shown only until the user has a real session) ── */
 const SEED_HISTORY = [
   {
     id: "h1",
-    date: "Lun, 16 Jun",
+    rawDate: daysAgo(5),
+    get date() { return fmtSeedDate(this.rawDate); },
     routineName: "Día de Piernas",
     routineColor: "#FFA552",
     durationMin: 48,
@@ -2046,7 +2060,8 @@ const SEED_HISTORY = [
   },
   {
     id: "h2",
-    date: "Mié, 18 Jun",
+    rawDate: daysAgo(3),
+    get date() { return fmtSeedDate(this.rawDate); },
     routineName: "Día de Pecho",
     routineColor: "#FF8C2A",
     durationMin: 31,
@@ -2059,7 +2074,8 @@ const SEED_HISTORY = [
   },
   {
     id: "h3",
-    date: "Vie, 20 Jun",
+    rawDate: daysAgo(1),
+    get date() { return fmtSeedDate(this.rawDate); },
     routineName: "Día de Brazos",
     routineColor: "#6DB87A",
     durationMin: 22,
@@ -2086,6 +2102,7 @@ const StatsScreen = () => {
       if (rows && rows.length > 0) {
         const mapped = rows.map(r => ({
           id:           r.id,
+          rawDate:      r.created_at,
           date:         new Date(r.created_at).toLocaleDateString("es-CR",{weekday:"short",day:"numeric",month:"short"}),
           routineName:  r.routine_name,
           routineColor: r.routine_color,
@@ -2108,17 +2125,75 @@ const StatsScreen = () => {
   const startY = useRef(null);
   const currentY = useRef(0);
 
-  const weekData = [18,26,14,32,28,0,0];
-  const monthData = [42,58,35,61,49,38,55,60,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-  const data = period==="week"?weekData:monthData;
-  const labels = period==="week"?["L","M","X","J","V","S","D"]:Array.from({length:30},(_,i)=>`${i+1}`);
-  const max=Math.max(...data,1);
   // JS getDay(): 0=Sun … 6=Sat; week chart is Mon(0)…Sun(6)
   const jsDay = new Date().getDay();
   const weekTodayIdx = jsDay === 0 ? 6 : jsDay - 1;
   // Month chart: today's date is 1-based, array is 0-based
   const monthTodayIdx = new Date().getDate() - 1;
   const todayIdx = period === "week" ? weekTodayIdx : monthTodayIdx;
+
+  // Aggregate real session history into the week/month chart buckets and a
+  // per-weekday breakdown for the "tap a bar" detail sheet. Previously these
+  // were hardcoded arrays ([18,26,14,32,28,0,0], etc.) that never reflected
+  // what the user had actually done — the chart always showed the same
+  // numbers no matter how many workouts were logged.
+  const { weekData, monthData, weekDayDetail } = useMemo(() => {
+    const week = Array(7).fill(0);
+    const month = Array(30).fill(0);
+    const detail = Array.from({ length: 7 }, () => ({ minutes: 0, exercises: [] }));
+
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setHours(0, 0, 0, 0);
+    startOfWeek.setDate(now.getDate() - weekTodayIdx); // back up to this week's Monday
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+    history.forEach(h => {
+      const d = h.rawDate ? new Date(h.rawDate) : null;
+      if (!d || isNaN(d.getTime())) return;
+      const mins = h.durationMin || 0;
+
+      if (d >= startOfWeek && d < endOfWeek) {
+        const jd = d.getDay();
+        const dayIdx = jd === 0 ? 6 : jd - 1;
+        week[dayIdx] += mins;
+        detail[dayIdx].minutes += mins;
+        detail[dayIdx].exercises.push(...(h.exercises || []).map(ex => ex.name));
+      }
+      if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+        const di = d.getDate() - 1;
+        if (di >= 0 && di < 30) month[di] += mins;
+      }
+    });
+
+    return { weekData: week, monthData: month, weekDayDetail: detail };
+  }, [history, weekTodayIdx]);
+
+  // How many sessions happened this week vs. the previous week, for the
+  // "Sesiones completadas" summary card detail line.
+  const sessionsWeekDelta = useMemo(() => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setHours(0, 0, 0, 0);
+    startOfWeek.setDate(now.getDate() - weekTodayIdx);
+    const startOfPrevWeek = new Date(startOfWeek);
+    startOfPrevWeek.setDate(startOfWeek.getDate() - 7);
+
+    let thisWeek = 0, lastWeek = 0;
+    history.forEach(h => {
+      const d = h.rawDate ? new Date(h.rawDate) : null;
+      if (!d || isNaN(d.getTime())) return;
+      if (d >= startOfWeek) thisWeek++;
+      else if (d >= startOfPrevWeek) lastWeek++;
+    });
+    return thisWeek - lastWeek;
+  }, [history, weekTodayIdx]);
+
+  const WEEKDAY_NAMES = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  const data = period==="week"?weekData:monthData;
+  const labels = period==="week"?["L","M","X","J","V","S","D"]:Array.from({length:30},(_,i)=>`${i+1}`);
+  const max=Math.max(...data,1);
 
   const onTouchStart = (e) => {
     e.stopPropagation();
@@ -2212,7 +2287,15 @@ const StatsScreen = () => {
       {/* Summary stats */}
       {[
         { label:"Frec. muscular semanal",val:"6 grupos",detail:"↑ 2 vs. semana pasada",color:C.accent,pct:0.75 },
-        { label:"Sesiones completadas",val:"47",detail:"↑ 4 vs. semana pasada",color:C.pink,pct:0.58 },
+        {
+          label:"Sesiones completadas",
+          val:String(history.length),
+          detail: sessionsWeekDelta > 0 ? `↑ ${sessionsWeekDelta} vs. semana pasada`
+                : sessionsWeekDelta < 0 ? `↓ ${-sessionsWeekDelta} vs. semana pasada`
+                : "Igual que la semana pasada",
+          color:C.pink,
+          pct: Math.min(1, history.length / 50),
+        },
       ].map((s,i)=>(
         <div key={i} className="anim-fadeUp" style={{ background:C.s1,borderRadius:20,padding:"16px",marginBottom:10,border:`1px solid ${C.s3}`,animationDelay:`${i*0.07}s`,boxShadow:`0 2px 12px ${s.color}10` }}>
           <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:10 }}>
@@ -2325,19 +2408,19 @@ const StatsScreen = () => {
               <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:18 }}>
                 <div style={{ width:44,height:44,borderRadius:"50%",background:`${C.accent}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22 }}>●</div>
                 <div>
-                  <div style={{ fontSize:18,fontWeight:900,color:C.t1,fontFamily:FONT_DISPLAY }}>{DAY_EXERCISES[selectedDay].day}</div>
+                  <div style={{ fontSize:18,fontWeight:900,color:C.t1,fontFamily:FONT_DISPLAY }}>{WEEKDAY_NAMES[selectedDay]}</div>
                   <div style={{ fontSize:12,color:C.t2,marginTop:2 }}>Esta semana</div>
                 </div>
                 <div style={{ marginLeft:"auto",textAlign:"right" }}>
-                  <div style={{ fontSize:22,fontWeight:900,color:C.accent }}>{DAY_EXERCISES[selectedDay].minutes}</div>
+                  <div style={{ fontSize:22,fontWeight:900,color:C.accent }}>{weekDayDetail[selectedDay].minutes}</div>
                   <div style={{ fontSize:10,fontWeight:700,color:C.t3,textTransform:"uppercase",letterSpacing:"0.07em" }}>min activos</div>
                 </div>
               </div>
 
-              {DAY_EXERCISES[selectedDay].exercises.length > 0 ? (
+              {weekDayDetail[selectedDay].exercises.length > 0 ? (
                 <>
                   <div style={{ fontSize:11,fontWeight:700,color:C.t3,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:10 }}>Ejercicios completados</div>
-                  {DAY_EXERCISES[selectedDay].exercises.map((ex,i)=>(
+                  {weekDayDetail[selectedDay].exercises.map((ex,i)=>(
                     <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:20,background:i%2===0?C.s2:C.bg,marginBottom:6 }}>
                       <div style={{ width:28,height:28,borderRadius:"50%",background:`${C.accent}18`,display:"flex",alignItems:"center",justifyContent:"center" }}>
                         <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 6.5L5 9.5L11 3.5" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -3447,22 +3530,29 @@ export default function App() {
   }, []);
 
   const handleUpdateRoutines = useCallback((updater) => {
-    setRoutines(prev => {
-      const next = updater(prev);
-      // Primary: match by ID (covers in-place edits where ID is preserved)
-      const byId = next.find(r => r.id === todayRoutine.id);
-      if (byId) {
-        setTodayRoutine(byId);
-      } else if (next.length > 0) {
-        // Fallback: routine was deleted or re-keyed — keep same position, or clamp to last
-        const prevIdx = prev.findIndex(r => r.id === todayRoutine.id);
-        setTodayRoutine(next[Math.min(prevIdx, next.length - 1)]);
-      }
-      // Persist to Supabase (fire-and-forget)
-      saveRoutines(next).catch(err => console.warn("saveRoutines:", err));
-      return next;
-    });
-  }, [todayRoutine.id]);
+    // `updater` must stay pure -- React can invoke a setState updater more
+    // than once for the same update (StrictMode does this deliberately to
+    // surface side effects). Previously this called setTodayRoutine and
+    // fired a network request (saveRoutines) from *inside* the updater,
+    // which meant routine saves could silently double-POST to the backend
+    // and another component's state was being set mid update-phase.
+    // Computing `next` from the current `routines` value and doing every
+    // side effect afterwards keeps the updater itself pure.
+    const next = updater(routines);
+    setRoutines(next);
+
+    // Primary: match by ID (covers in-place edits where ID is preserved)
+    const byId = next.find(r => r.id === todayRoutine.id);
+    if (byId) {
+      setTodayRoutine(byId);
+    } else if (next.length > 0) {
+      // Fallback: routine was deleted or re-keyed — keep same position, or clamp to last
+      const prevIdx = routines.findIndex(r => r.id === todayRoutine.id);
+      setTodayRoutine(next[Math.min(prevIdx, next.length - 1)]);
+    }
+    // Persist to the backend (fire-and-forget)
+    saveRoutines(next).catch(err => console.warn("saveRoutines:", err));
+  }, [routines, todayRoutine]);
 
   // Called when user taps "Salir" in the exit confirmation dialog.
   // Pop twice: once to get off the re-pushed root, once to reach the sentinel,

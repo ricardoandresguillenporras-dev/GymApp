@@ -215,7 +215,15 @@ function uploadWorkoutPhoto(photo, sessionId) {
   const fileId = file.getId();
   const publicUrl = `https://lh3.googleusercontent.com/d/${fileId}`; // direct-viewable image URL
 
-  const id = Utilities.getUuid();
+  // IMPORTANT: reuse the id the client already generated (and is using as
+  // the filename in its own local cache / Capacitor FS) instead of minting
+  // a new one here. Previously this always called Utilities.getUuid(),
+  // which meant the id the client later passed to deleteWorkoutPhoto(id)
+  // never matched any row in this sheet — deletes silently no-opped and
+  // "removed" photos kept reappearing after every reload.
+  const id = (photo.id !== undefined && photo.id !== null && String(photo.id).trim() !== "")
+    ? String(photo.id)
+    : Utilities.getUuid();
   const now = new Date().toISOString();
   upsertRow(SHEET_PHOTOS, id, {
     id: id,
