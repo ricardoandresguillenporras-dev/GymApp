@@ -2018,14 +2018,19 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
         <div style={{ padding:"0 22px 24px",display:"flex",flexDirection:"column",gap:18 }}>
           {routines.map((r,i)=>(
             <div key={r.id} className="anim-fadeUp pressable" onClick={()=>onSelect(r)} style={{ borderRadius:24,overflow:"hidden",background:C.s1,border:`1px solid ${C.s3}`,animationDelay:`${i*0.08}s`,boxShadow:"0 4px 20px rgba(0,0,0,0.07)",cursor:"pointer" }}>
-              {/* Full-bleed hero header */}
-              <div style={{ height:92,background:`linear-gradient(135deg,${r.color},${r.dark})`,position:"relative",display:"flex",alignItems:"center",padding:"0 20px",overflow:"hidden" }}>
-                <div style={{ position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:28,background:"rgba(255,255,255,0.08)",pointerEvents:"none" }}/>
-                <div style={{ position:"absolute",bottom:-30,left:60,width:80,height:80,borderRadius:"50%",background:"rgba(255,255,255,0.06)",pointerEvents:"none" }}/>
-                <div style={{ fontSize:42,marginRight:14,filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.2))" }}></div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.7)",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4 }}>{r.sub}</div>
-                  <div style={{ fontSize:20,fontWeight:900,color:"#fff",letterSpacing:"-0.2px",fontFamily:FONT_SERIF,lineHeight:1.15 }}>{r.name}</div>
+              {/* Full-bleed hero header — layered wave art, keeps r.color/r.dark */}
+              <div style={{ height:104,background:`linear-gradient(150deg,${r.dark} 0%,${r.color} 62%)`,position:"relative",display:"flex",alignItems:"flex-end",padding:"0 20px 16px",overflow:"hidden" }}>
+                {/* Soft light glow, top-right — echoes the diffused-light reference art */}
+                <div style={{ position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 55% at 86% 6%,rgba(255,255,255,0.5),transparent 70%)",pointerEvents:"none" }}/>
+                {/* Flowing translucent wave bands — echoes the reference wave art */}
+                <svg width="100%" height="100%" viewBox="0 0 400 104" preserveAspectRatio="none" style={{ position:"absolute",inset:0,pointerEvents:"none" }}>
+                  <path d="M0,74 C70,42 130,96 200,66 C260,40 310,76 400,50 L400,104 L0,104 Z" fill="rgba(0,0,0,0.13)"/>
+                  <path d="M0,90 C80,60 160,104 240,76 C300,52 340,70 400,62 L400,104 L0,104 Z" fill="rgba(255,255,255,0.10)"/>
+                  <path d="M0,18 C90,0 180,32 260,12 C320,-2 360,16 400,4 L400,0 L0,0 Z" fill="rgba(255,255,255,0.12)"/>
+                </svg>
+                <div style={{ position:"relative",flex:1,minWidth:0 }}>
+                  <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.75)",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4,textShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>{r.sub}</div>
+                  <div style={{ fontSize:20,fontWeight:900,color:"#fff",letterSpacing:"-0.2px",fontFamily:FONT_SERIF,lineHeight:1.15,textShadow:"0 1px 6px rgba(0,0,0,0.18)" }}>{r.name}</div>
                 </div>
               </div>
               <div style={{ padding:"16px 20px 20px" }}>
