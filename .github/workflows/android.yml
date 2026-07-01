@@ -56,7 +56,11 @@ jobs:
           exit $code
 
       - name: Reapply native manifest overrides
-        run: cp android-overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+        run: |
+          cp android-overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          mkdir -p android/app/src/main/res/xml
+          cp android-overrides/xml/backup_rules.xml android/app/src/main/res/xml/backup_rules.xml
+          cp android-overrides/xml/data_extraction_rules.xml android/app/src/main/res/xml/data_extraction_rules.xml
 
       - name: Make Gradle executable
         run: chmod +x android/gradlew

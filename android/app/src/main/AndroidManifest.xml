@@ -8,6 +8,11 @@
   después de sincronizar, para no perder los permisos nativos que la
   app necesita (cámara, vibración, almacenamiento).
 
+  Los recursos referenciados como @xml/... (backup_rules,
+  data_extraction_rules) viven en /android-overrides/xml — versionados
+  por la misma razón — y el mismo workflow los copia a
+  android/app/src/main/res/xml/ junto con este manifest.
+
   Si agregas un nuevo plugin de Capacitor que requiera un permiso
   nuevo, agrégalo aquí — no directamente en android/app/.../AndroidManifest.xml,
   porque ese archivo se descarta en cada sync.
@@ -36,6 +41,8 @@
 
   <application
     android:allowBackup="true"
+    android:fullBackupContent="@xml/backup_rules"
+    android:dataExtractionRules="@xml/data_extraction_rules"
     android:icon="@mipmap/ic_launcher"
     android:label="@string/app_name"
     android:roundIcon="@mipmap/ic_launcher_round"

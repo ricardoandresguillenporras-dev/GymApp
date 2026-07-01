@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Reglas de Auto Backup para Android ≤ 11 (referenciadas desde
+  android:fullBackupContent en el AndroidManifest).
+
+  allowBackup="true" está activo para que el resto de la data de la app
+  sobreviva un cambio de teléfono. Pero el log de feedback (feedbackStore.js)
+  se guarda en el directorio privado de la app precisamente para que
+  desaparezca por completo al desinstalar — si Auto Backup lo incluyera,
+  una reinstalación podría "resucitarlo" desde Google Drive, lo cual
+  contradice esa garantía. Se excluye explícitamente aquí.
+-->
+<full-backup-content>
+    <exclude domain="file" path="WeLiftTogether/feedback.json" />
+</full-backup-content>

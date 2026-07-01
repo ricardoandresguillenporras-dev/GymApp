@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { PartnerSplash, PartnerCodeManager } from "./PartnerSplash";
+import { loadFeedback, addFeedback } from "./feedbackStore";
 import legPressArt from "./assets/routines/leg-press.webp";
 import cableMachineArt from "./assets/routines/cable-machine.webp";
 import curlBenchArt from "./assets/routines/curl-bench.webp";
@@ -552,14 +553,18 @@ const TabBar = ({ active, onTab }) => {
    Minimal settings rail that stays fully hidden offscreen, leaving only a
    tiny orange arrow tab poking out from the screen edge. Tapping it slides
    in a slim panel with: a haptics on/off switch, a feedback bubble that
-   expands into a text box, and a placeholder "?" bubble reserved for a
-   future feature. */
+   expands into a text box, and a "?" bubble that expands into that same
+   feedback's history (see feedbackStore.js — local-only, file-backed,
+   wiped automatically on uninstall). */
 const SideRail = () => {
   const [open, setOpen] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(haptic.isEnabled());
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [sent, setSent] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [feedbackHistory, setFeedbackHistory] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const PANEL_W = 222;
 
   const toggleHaptics = () => {
@@ -569,19 +574,32 @@ const SideRail = () => {
     if (next) haptic.select();
   };
 
-  const submitFeedback = () => {
+  // Loaded lazily — no reason to touch the filesystem/localStorage until
+  // the person actually opens the panel.
+  const ensureHistoryLoaded = () => {
+    if (historyLoaded) return;
+    setHistoryLoaded(true);
+    loadFeedback().then(setFeedbackHistory).catch(() => {});
+  };
+
+  const submitFeedback = async () => {
     const trimmed = feedbackText.trim();
     if (!trimmed) return;
-    try {
-      const KEY = "wlt_feedback_log";
-      const prev = JSON.parse(localStorage.getItem(KEY) || "[]");
-      prev.push({ text: trimmed, date: new Date().toISOString() });
-      localStorage.setItem(KEY, JSON.stringify(prev));
-    } catch {}
     haptic.success();
     setSent(true);
     setFeedbackText("");
+    try {
+      const updated = await addFeedback(trimmed);
+      setFeedbackHistory(updated);
+      setHistoryLoaded(true);
+    } catch { /* stored locally best-effort — never block the "sent" confirmation on it */ }
     setTimeout(() => { setSent(false); setShowFeedback(false); }, 1500);
+  };
+
+  const fmtFeedbackDate = (iso) => {
+    try {
+      return new Date(iso).toLocaleString("es-CR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    } catch { return ""; }
   };
 
   const bubbleBtn = (active) => ({
@@ -712,20 +730,39 @@ const SideRail = () => {
           )}
         </div>
 
-        {/* Placeholder bubble — reserved for a future feature */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            className="pressable"
-            onClick={() => haptic.light()}
-            style={bubbleBtn(false)}
-            aria-label="Próximamente"
-          >
-            <span style={{ fontSize: 15, fontWeight: 900, color: C.t2 }}>?</span>
-          </button>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Próximamente</div>
-            <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>Aún sin función</div>
+        {/* Feedback history bubble */}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              className="pressable"
+              onClick={() => { haptic.select(); setShowHistory(h => !h); ensureHistoryLoaded(); }}
+              style={bubbleBtn(showHistory)}
+              aria-label="Ver historial de feedback"
+            >
+              <span style={{ fontSize: 15, fontWeight: 900, color: showHistory ? "#fff" : C.t2 }}>?</span>
+            </button>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Historial</div>
+              <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>Tu feedback enviado</div>
+            </div>
           </div>
+
+          {showHistory && (
+            <div className="anim-slideDown" style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
+              {feedbackHistory.length === 0 ? (
+                <div style={{ fontSize: 11, color: C.t3, background: C.s1, border: `1px solid ${C.s3}`, borderRadius: 14, padding: "10px 12px", textAlign: "center" }}>
+                  Aún no has enviado feedback
+                </div>
+              ) : (
+                feedbackHistory.map((f, i) => (
+                  <div key={i} style={{ background: C.s1, border: `1px solid ${C.s3}`, borderRadius: 14, padding: "9px 12px" }}>
+                    <div style={{ fontSize: 11, color: C.t1, lineHeight: 1.35, wordBreak: "break-word" }}>{f.text}</div>
+                    <div style={{ fontSize: 9, color: C.t3, marginTop: 4, fontWeight: 700 }}>{fmtFeedbackDate(f.date)}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
