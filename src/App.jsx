@@ -3041,7 +3041,19 @@ const SwapExerciseSheet = ({ targetEx, accent, onSwap, onClose }) => {
 };
 
 /* ── EXERCISE ROW ── */
-const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={} }) => {
+/* Kettlebell ("pesa rusa") silhouette — grip loop + neck + bell — used as
+   the drag handle for reordering exercises. Flat-filled bell + stroked
+   loop keeps it legible at small sizes and in line with the app's other
+   line icons (see the swap icon just below). */
+const KettlebellHandle = ({ size = 18, color = C.t2 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="7" y="2.5" width="10" height="8" rx="4" stroke={color} strokeWidth="2.1"/>
+    <path d="M8.3 10.2L7 13.5H17L15.7 10.2" stroke={color} strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="12" cy="18.3" r="5" fill={color}/>
+  </svg>
+);
+
+const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, rowRef, dragHandleProps }) => {
   const [done, setDone] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [weight, setWeight] = useState(ex.weight ?? 0);
@@ -3133,6 +3145,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={} }) 
   if (done && !expanded) {
     return (
       <div
+        ref={rowRef}
         className="anim-fadeUp pressable"
         onClick={()=>setExpanded(true)}
         style={{
@@ -3167,6 +3180,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={} }) 
 
   return (
     <div
+      ref={rowRef}
       className="anim-fadeUp pressable"
       onClick={handleToggle}
       style={{
@@ -3182,7 +3196,18 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={} }) 
       }}>
       <div style={{ padding:"18px 18px" }}>
         {/* Header row */}
-        <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:16 }}>
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:16 }}>
+          {/* Drag handle — kettlebell grip, reorders this exercise within the routine */}
+          {!done && dragHandleProps && (
+            <div
+              {...dragHandleProps}
+              className="pressable"
+              onClick={e=>e.stopPropagation()}
+              title="Arrastra para reordenar"
+              style={{ width:32,height:32,borderRadius:"50%",flexShrink:0,background:`${accent}15`,border:`1px solid ${accent}30`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"grab",touchAction:"none",...dragHandleProps.style }}>
+              <KettlebellHandle size={16} color={accent}/>
+            </div>
+          )}
           {/* Index / check bubble */}
           <div style={{ width:36,height:36,borderRadius:"50%",flexShrink:0,background:done?`linear-gradient(135deg,${accent},${C.accentD})`:C.s2,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.18s" }}>
             {done?(
@@ -3297,7 +3322,7 @@ const fmtElapsed = (s) => {
   return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 };
 
-const ExerciseScreen = ({ routine, onBack }) => {
+const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
   const [doneSet,setDoneSet]=useState(new Set());
   const [exercises,setExercises]=useState(routine.exercises.map((e,i)=>({ ...e, _id:`base-${i}` })));
   const [showAdd,setShowAdd]=useState(false);
@@ -3317,6 +3342,98 @@ const ExerciseScreen = ({ routine, onBack }) => {
     setExercises(prev => prev.map(e => e._id === id ? { ...newEx, _id: id } : e));
     setSwappingId(null);
   };
+
+  // ── Drag-to-reorder (kettlebell handle) ──
+  // Rows report their DOM node here so we can snapshot everyone's position
+  // the moment a drag starts. All hit-testing during the drag compares
+  // against that frozen snapshot (not live re-measured rects), which keeps
+  // the math stable even as sibling rows reflow into their new slots.
+  const rowNodes = useRef({});
+  const setRowRef = useCallback((id) => (node) => {
+    if (node) rowNodes.current[id] = node;
+    else delete rowNodes.current[id];
+  }, []);
+  const dragInfo = useRef(null);   // { id, order:[ids], rects:{id:{top,height}}, currentIndex }
+  const rafId = useRef(null);
+  const pendingDy = useRef(0);
+  const [draggingId, setDraggingId] = useState(null);
+  const [dragY, setDragY] = useState(0);
+
+  // Persists a pure reorder (position only) back into the routine template
+  // so it's already in this order the next time the routine is opened.
+  // Exercises added ad-hoc mid-session aren't part of the saved template,
+  // so a drag involving one of them isn't persisted — only clean reorders
+  // of the routine's own exercises are.
+  const persistOrder = useCallback((orderedExercises) => {
+    if (!onUpdateRoutines) return;
+    const baseById = new Map(routine.exercises.map((e,i) => [`base-${i}`, e]));
+    const reordered = orderedExercises.map(e => baseById.get(e._id)).filter(Boolean);
+    if (reordered.length !== routine.exercises.length) return;
+    onUpdateRoutines(prev => prev.map(r => r.id === routine.id ? { ...r, exercises: reordered } : r));
+  }, [routine, onUpdateRoutines]);
+
+  const applyDragFrame = useCallback(() => {
+    const info = dragInfo.current;
+    if (!info) return;
+    const dy = pendingDy.current;
+    setDragY(dy);
+
+    const draggedRect = info.rects[info.id];
+    const draggedCenter = draggedRect.top + draggedRect.height / 2 + dy;
+
+    let targetIndex = info.order.indexOf(info.id);
+    for (let i = 0; i < info.order.length; i++) {
+      const oid = info.order[i];
+      if (oid === info.id) continue;
+      const r = info.rects[oid];
+      if (draggedCenter > r.top && draggedCenter < r.top + r.height) { targetIndex = i; break; }
+    }
+
+    if (targetIndex !== info.currentIndex) {
+      info.currentIndex = targetIndex;
+      const newOrderIds = info.order.filter(id => id !== info.id);
+      newOrderIds.splice(targetIndex, 0, info.id);
+      haptic.light();
+      setExercises(prev => {
+        const byId = new Map(prev.map(e => [e._id, e]));
+        return newOrderIds.map(id => byId.get(id));
+      });
+    }
+  }, []);
+
+  const handlePointerMove = useCallback((e) => {
+    if (!dragInfo.current) return;
+    pendingDy.current = e.clientY - dragInfo.current.startY;
+    if (rafId.current) return;
+    rafId.current = requestAnimationFrame(() => { rafId.current = null; applyDragFrame(); });
+  }, [applyDragFrame]);
+
+  const handlePointerUp = useCallback(() => {
+    if (rafId.current) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", handlePointerUp);
+    dragInfo.current = null;
+    setDraggingId(null);
+    setDragY(0);
+    haptic.medium();
+    setExercises(current => { persistOrder(current); return current; });
+  }, [handlePointerMove, persistOrder]);
+
+  const startDrag = useCallback((id, clientY) => {
+    const order = exercises.map(e => e._id);
+    const rects = {};
+    order.forEach(oid => {
+      const node = rowNodes.current[oid];
+      if (node) rects[oid] = node.getBoundingClientRect();
+    });
+    if (!rects[id]) return;
+    dragInfo.current = { id, order, rects, startY: clientY, currentIndex: order.indexOf(id) };
+    setDraggingId(id);
+    setDragY(0);
+    haptic.medium();
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+  }, [exercises, handlePointerMove, handlePointerUp]);
 
   // ── Elapsed timer — starts when the screen mounts ──
   const [elapsed,setElapsed]=useState(0); // seconds
@@ -3439,7 +3556,11 @@ const ExerciseScreen = ({ routine, onBack }) => {
             onToggle={(isDone)=>handleToggle(ex._id,isDone)}
             onUpdate={(patch)=>setExercises(prev=>prev.map(e=>e._id===ex._id?{...e,...patch}:e))}
             onSwap={()=>setSwappingId(ex._id)}
-            style={{ marginBottom:14 }}/>
+            rowRef={setRowRef(ex._id)}
+            dragHandleProps={{ onPointerDown:(e)=>{ e.stopPropagation(); e.target.setPointerCapture?.(e.pointerId); startDrag(ex._id, e.clientY); } }}
+            style={ex._id===draggingId
+              ? { marginBottom:14, transform:`translateY(${dragY}px) scale(1.02)`, transition:"none", zIndex:30, position:"relative", boxShadow:"0 14px 34px rgba(0,0,0,0.18)" }
+              : { marginBottom:14 }}/>
         ))}
 
         {/* ── Add exercise panel ── */}
@@ -3980,7 +4101,7 @@ export default function App() {
 
       <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column" }}>
         {showExercise ? (
-          <ExerciseScreen routine={activeRoutine} onBack={goBack}/>
+          <ExerciseScreen routine={activeRoutine} onBack={goBack} onUpdateRoutines={handleUpdateRoutines}/>
         ) : (
           <SwipeTabContainer tab={tab} onTabChange={goTab}>
             <div style={{ width:`${TAB_W}%`, height:"100%", flexShrink:0, overflow:"hidden", display:"flex", flexDirection:"column" }}>
