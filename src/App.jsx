@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { PartnerSplash, PartnerCodeManager } from "./PartnerSplash";
+import legPressArt from "./assets/routines/leg-press.webp";
+import cableMachineArt from "./assets/routines/cable-machine.webp";
+import curlBenchArt from "./assets/routines/curl-bench.webp";
 import {
   SYNC_ID,
   isPartnerSession,
@@ -774,6 +777,16 @@ const DEFAULT_ROUTINES = [
     ],
   },
 ];
+
+// Illustrated machine art for the 3 default routines' circle badges (routine
+// picker card + start-confirm sheet). Keyed by routine id so it only ever
+// applies to these built-in routines — any routine the user creates later
+// falls back to the plain color-tinted circle, same as before.
+const ROUTINE_ART = {
+  1: legPressArt,   // Día de Piernas — prensa de piernas
+  2: cableMachineArt, // Día de Pecho — máquina de poleas
+  3: curlBenchArt,  // Día de Brazos — banco Scott + mancuernas
+};
 
 /* ── CATÁLOGO DE MÁQUINAS (numeración física del gym) ──
    Directorio completo de máquinas por número, independiente de las rutinas
@@ -1655,7 +1668,9 @@ const RoutinePickerModal = ({ routines, current, onSelect, onClose }) => {
                   opacity:isPicked?1:0.6,
                   transition:"transform 0.3s cubic-bezier(.22,1,.36,1), opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
                 }}>
-                <div style={{ width:56,height:56,borderRadius:"50%",background:`${r.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 14px" }}></div>
+                <div style={{ width:56,height:56,borderRadius:"50%",background:`${r.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 14px",overflow:"hidden" }}>
+                  {ROUTINE_ART[r.id] && <img src={ROUTINE_ART[r.id]} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>}
+                </div>
                 <div style={{ fontSize:15,fontWeight:800,color:C.t1,marginBottom:4 }}>{r.name}</div>
                 <div style={{ fontSize:11,color:C.t3,marginBottom:12 }}>{r.sub}</div>
                 <div style={{ display:"flex",gap:6,justifyContent:"center",marginBottom:12 }}>
@@ -1754,7 +1769,9 @@ const StartWorkoutModal = ({ routine, onConfirm, onClose }) => {
           <div style={{ width:36,height:4,borderRadius:999,background:C.s4 }}/>
         </div>
         <div style={{ textAlign:"center",marginBottom:20 }}>
-          <div style={{ width:64,height:64,borderRadius:"50%",background:`${routine.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px" }}></div>
+          <div style={{ width:64,height:64,borderRadius:"50%",background:`${routine.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px",overflow:"hidden" }}>
+            {ROUTINE_ART[routine.id] && <img src={ROUTINE_ART[routine.id]} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>}
+          </div>
           <div style={{ fontSize:24,fontWeight:900,color:C.t1,letterSpacing:"0.02em",fontFamily:FONT_DISPLAY,textTransform:"uppercase" }}>{routine.name}</div>
           <div style={{ fontSize:13,color:C.t2,marginTop:4 }}>{routine.duration} min · {routine.exercises.length} ejercicios</div>
         </div>
