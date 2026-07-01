@@ -3126,15 +3126,18 @@ const SwapExerciseSheet = ({ targetEx, accent, onSwap, onClose }) => {
 };
 
 /* ── EXERCISE ROW ── */
-/* Kettlebell ("pesa rusa") silhouette — grip loop + neck + bell — used as
-   the drag handle for reordering exercises. Flat-filled bell + stroked
-   loop keeps it legible at small sizes and in line with the app's other
-   line icons (see the swap icon just below). */
-const KettlebellHandle = ({ size = 18, color = C.t2 }) => (
+/* Six-dot grip — a conventional drag handle, no bubble/background so it
+   reads as an edge affordance rather than an icon button. Sits flush at
+   the far-left edge of the row (see drag handle strip below), matching
+   the reorder-handle pattern used in most native list UIs. */
+const DragGripIcon = ({ size = 16, color = C.t3 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="7" y="2.5" width="10" height="8" rx="4" stroke={color} strokeWidth="2.1"/>
-    <path d="M8.3 10.2L7 13.5H17L15.7 10.2" stroke={color} strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"/>
-    <circle cx="12" cy="18.3" r="5" fill={color}/>
+    <circle cx="9"  cy="6"  r="1.7" fill={color}/>
+    <circle cx="15" cy="6"  r="1.7" fill={color}/>
+    <circle cx="9"  cy="12" r="1.7" fill={color}/>
+    <circle cx="15" cy="12" r="1.7" fill={color}/>
+    <circle cx="9"  cy="18" r="1.7" fill={color}/>
+    <circle cx="15" cy="18" r="1.7" fill={color}/>
   </svg>
 );
 
@@ -3277,22 +3280,25 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
         boxShadow:done?"none":"0 1px 4px rgba(0,0,0,0.03)",
         cursor:"pointer",
         overflow:"hidden",
+        display:"flex",
+        alignItems:"stretch",
         ...style
       }}>
-      <div style={{ padding:"18px 18px" }}>
+      {/* Drag handle — far-left edge strip, spans the full row height so
+          it reads as a grab affordance rather than a floating button */}
+      {!done && dragHandleProps && (
+        <div
+          {...dragHandleProps}
+          className="pressable"
+          onClick={e=>e.stopPropagation()}
+          title="Arrastra para reordenar"
+          style={{ width:26,flexShrink:0,alignSelf:"stretch",display:"flex",alignItems:"center",justifyContent:"center",cursor:"grab",touchAction:"none",...dragHandleProps.style }}>
+          <DragGripIcon size={15} color={C.t3}/>
+        </div>
+      )}
+      <div style={{ flex:1,minWidth:0,padding:(!done&&dragHandleProps)?"18px 18px 18px 2px":"18px 18px" }}>
         {/* Header row */}
         <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:16 }}>
-          {/* Drag handle — kettlebell grip, reorders this exercise within the routine */}
-          {!done && dragHandleProps && (
-            <div
-              {...dragHandleProps}
-              className="pressable"
-              onClick={e=>e.stopPropagation()}
-              title="Arrastra para reordenar"
-              style={{ width:32,height:32,borderRadius:"50%",flexShrink:0,background:`${accent}15`,border:`1px solid ${accent}30`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"grab",touchAction:"none",...dragHandleProps.style }}>
-              <KettlebellHandle size={16} color={accent}/>
-            </div>
-          )}
           {/* Index / check bubble */}
           <div style={{ width:36,height:36,borderRadius:"50%",flexShrink:0,background:done?`linear-gradient(135deg,${accent},${C.accentD})`:C.s2,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.18s" }}>
             {done?(
