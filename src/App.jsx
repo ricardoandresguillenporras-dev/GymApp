@@ -189,6 +189,38 @@ const haptic = (() => {
   };
 })();
 
+/* ── KEEP-AWAKE ──
+   Requests the Screen Wake Lock while the workout screen is mounted so the
+   phone doesn't dim/lock mid-set (which used to visually "freeze" the timer
+   and force the user to unlock and re-open the app to keep going).
+   The OS revokes the lock whenever the tab/app is hidden, so it's silently
+   re-requested the moment the app becomes visible again. Fails silently on
+   devices/webviews that don't support the API — no crash, just no lock. */
+const useKeepAwake = (active = true) => {
+  useEffect(() => {
+    if (!active || typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
+    let released = false;
+    let sentinel = null;
+
+    const request = async () => {
+      try {
+        sentinel = await navigator.wakeLock.request("screen");
+      } catch (e) { /* denied, unsupported, or tab not visible — ignore */ }
+    };
+    const onVisibility = () => {
+      if (!released && document.visibilityState === "visible" && (!sentinel || sentinel.released)) request();
+    };
+
+    request();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      released = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      sentinel?.release?.().catch(() => {});
+    };
+  }, [active]);
+};
+
 const C = {
   // Ground — Cotton Beige light base (80%)
   bg:      "#F9F3EA",       // Cotton Beige — main app ground
@@ -3492,14 +3524,27 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
   }, [exercises, handlePointerMove, handlePointerUp]);
 
   // ── Elapsed timer — starts when the screen mounts ──
+  // Timestamp-based instead of a naive +1/sec accumulator: JS timers get
+  // throttled or fully suspended while the tab/app is backgrounded (screen
+  // locked, app minimized, phone in pocket), which used to make the timer
+  // appear "paused" and drift behind real time. Recomputing from a fixed
+  // start timestamp means it always shows the true elapsed time the moment
+  // the screen comes back, instead of silently losing those seconds.
   const [elapsed,setElapsed]=useState(0); // seconds
+  const startedAtRef = useRef(Date.now());
   const [sessionSaved,setSessionSaved]=useState(false);
   // Lets the user explicitly finish the routine via the bottom button,
   // instead of only auto-completing once every exercise is checked off.
   const [manualComplete,setManualComplete]=useState(false);
+  // Keeps the screen from dimming/locking while a routine is in progress —
+  // released automatically once the routine is finished or left.
+  useKeepAwake(!manualComplete && doneSet.size < exercises.length);
   useEffect(()=>{
-    const id=setInterval(()=>setElapsed(s=>s+1),1000);
-    return ()=>clearInterval(id);
+    const tick = () => setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+    const id = setInterval(tick, 1000);
+    const onVisible = () => { if (document.visibilityState === "visible") tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
   },[]);
 
   const total=exercises.length;
@@ -3714,7 +3759,17 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
                 </div>
               ))}
             </div>
-            <button className="pressable" onClick={onBack} style={{ marginTop:16,background:C.s1,border:`1px solid ${C.s3}`,borderRadius:16,padding:"12px 32px",fontSize:14,fontWeight:700,color:C.t1,cursor:"pointer",fontFamily:FONT }}>Volver a rutinas</button>
+            <button className="pressable" onClick={()=>{ haptic.success(); onBack(); }}
+              style={{ marginTop:20,width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:`linear-gradient(135deg,${routine.color},${routine.dark})`,border:"none",borderRadius:18,padding:"15px",fontSize:14,fontWeight:800,color:"#fff",cursor:"pointer",fontFamily:FONT_DISPLAY,letterSpacing:"0.06em",textTransform:"uppercase",boxShadow:`0 8px 24px ${routine.color}50` }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M20 6L9 17L4 12" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Completar
+            </button>
+            <button className="pressable" onClick={onBack}
+              style={{ marginTop:10,background:"none",border:"none",fontSize:12,fontWeight:600,color:C.t3,cursor:"pointer",fontFamily:FONT,textDecoration:"underline",textUnderlineOffset:2 }}>
+              Volver a rutinas
+            </button>
           </div>
         )}
       </div>
