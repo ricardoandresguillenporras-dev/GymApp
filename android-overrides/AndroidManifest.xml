@@ -29,11 +29,13 @@
   <uses-feature android:name="android.hardware.camera" android:required="false" />
   <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
-  <!-- Almacenamiento de fotos (Capacitor Filesystem) -->
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-    android:maxSdkVersion="32" />
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-    android:maxSdkVersion="29" />
+  <!-- NOTA: no se declaran READ/WRITE_EXTERNAL_STORAGE a propósito. Toda la
+       data de la app (fotos, feedback, etc.) vive en Directory.Data de
+       Capacitor Filesystem, que es almacenamiento interno privado y no
+       requiere ningún permiso de almacenamiento. La app nunca toca
+       Directory.External ni el picker de archivos necesita este permiso
+       en Android moderno — agregarlo solo sugeriría, incorrectamente, que
+       la app lee/escribe en almacenamiento compartido. -->
 
   <!-- Internet (Supabase API) -->
   <uses-permission android:name="android.permission.INTERNET" />
