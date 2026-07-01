@@ -3221,7 +3221,7 @@ const DragGripIcon = ({ size = 16, color = C.t3 }) => (
   </svg>
 );
 
-const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, rowRef, dragHandleProps }) => {
+const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, rowRef, dragHandleProps, finished=false }) => {
   const [done, setDone] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [weight, setWeight] = useState(ex.weight ?? 0);
@@ -3237,6 +3237,16 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   const popTimer = useRef(null);
   const mountedRef = useRef(false);
 
+  // The routine was finalized (either every exercise got checked off, or
+  // the user tapped "Finalizar rutina" early) and this one was never
+  // marked done — it's excluded from what gets saved to history, and
+  // renders as a greyed-out, locked row instead of an active one.
+  const skipped = finished && !done;
+
+  // Collapse it the moment it becomes skipped, so a row left mid-edit at
+  // the exact moment "Finalizar" gets tapped doesn't linger open.
+  useEffect(() => { if (skipped) setExpanded(false); }, [skipped]);
+
   // Report live edits (weight, weight2, sets, reps, machine) up to the parent
   // so they're included when the workout session is saved to history.
   useEffect(() => {
@@ -3246,6 +3256,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   }, [weight, weight2, sets, reps, machine]);
 
   const handleToggle = () => {
+    if (finished) return; // routine's already wrapped up — nothing left to toggle
     const next = !done;
     setDone(next);
     onToggle && onToggle(next);
@@ -3309,6 +3320,38 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
     );
   };
 
+  // ── Collapsed summary row (skipped — routine finalized without this one) ──
+  if (skipped && !expanded) {
+    return (
+      <div
+        ref={rowRef}
+        className="anim-fadeUp"
+        style={{
+          borderRadius:20,
+          border:`1px solid ${C.s3}`,
+          background:C.s2,
+          animationDelay:`${idx*0.05}s`,
+          cursor:"default",
+          opacity:0.55,
+          padding:"12px 16px",
+          display:"flex",alignItems:"center",gap:12,
+          overflow:"hidden",
+          position:"relative",
+          ...style
+        }}>
+        <div style={{ width:28,height:28,borderRadius:"50%",flexShrink:0,background:C.s3,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:6 }}>
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <path d="M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5" stroke={C.t3} strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </div>
+        <div style={{ flex:1,minWidth:0 }}>
+          <div style={{ fontSize:14,fontWeight:700,color:C.t3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</div>
+        </div>
+        <div style={{ fontSize:10,color:C.t3,fontWeight:700,flexShrink:0,textTransform:"uppercase",letterSpacing:"0.05em" }}>Omitido</div>
+      </div>
+    );
+  }
+
   // ── Collapsed summary row (completed exercises) ──
   if (done && !expanded) {
     return (
@@ -3350,15 +3393,17 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
     <div
       ref={rowRef}
       className="anim-fadeUp pressable"
-      onClick={handleToggle}
+      onClick={skipped ? undefined : handleToggle}
       style={{
         borderRadius:20,
         border:`1px solid ${done?`${accent}35`:C.s3}`,
         background:done?`${accent}08`:C.s1,
-        transition:"background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease",
+        transition:"background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.2s ease",
         animationDelay:`${idx*0.05}s`,
         boxShadow:done?"none":"0 1px 4px rgba(0,0,0,0.03)",
-        cursor:"pointer",
+        cursor:skipped?"default":"pointer",
+        opacity:skipped?0.55:1,
+        filter:skipped?"grayscale(0.4)":"none",
         overflow:"hidden",
         display:"flex",
         alignItems:"stretch",
@@ -3366,7 +3411,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
       }}>
       {/* Drag handle — far-left edge strip, spans the full row height so
           it reads as a grab affordance rather than a floating button */}
-      {!done && dragHandleProps && (
+      {!done && !finished && dragHandleProps && (
         <div
           {...dragHandleProps}
           className="pressable"
@@ -3468,15 +3513,16 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
         <button
           className={`pressable${popping ? " anim-confirmPop" : ""}`}
           onClick={e=>{e.stopPropagation();handleToggle();}}
+          disabled={skipped}
           style={{
             width:"100%",border:"none",borderRadius:20,padding:"11px",
-            fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT,
-            background:done?`${accent}14`:`linear-gradient(135deg,${accent},${C.accentD})`,
-            color:done?accent:"#fff",
-            boxShadow:done?"none":`0 4px 14px ${accent}35`,
+            fontSize:13,fontWeight:700,cursor:skipped?"default":"pointer",fontFamily:FONT,
+            background:skipped?C.s3:done?`${accent}14`:`linear-gradient(135deg,${accent},${C.accentD})`,
+            color:skipped?C.t3:done?accent:"#fff",
+            boxShadow:(done||skipped)?"none":`0 4px 14px ${accent}35`,
             transition:"all 0.25s ease",
           }}>
-          {done ? "Completado" : "Confirmar"}
+          {skipped ? "Omitido" : done ? "Completado" : "Confirmar"}
         </button>
       </div>
     </div>
@@ -3661,7 +3707,10 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
 
   // Auto-save completed session to Supabase (fires once, whether the
   // routine finished because every exercise got checked off or because
-  // the user tapped "Finalizar rutina")
+  // the user tapped "Finalizar rutina"). Exercises never marked done get
+  // excluded — tapping "Finalizar" early greys them out in the list (see
+  // ExerciseRow's `skipped` state) and they shouldn't count toward the
+  // history/stats as if they'd actually been performed.
   useEffect(()=>{
     if (isComplete && !sessionSaved) {
       setSessionSaved(true);
@@ -3671,10 +3720,10 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
         routineName:  routine.name,
         routineColor: routine.color,
         durationMin:  Math.round(elapsed / 60),
-        exercises:    exercises.map(({ _id, ...rest }) => rest),
+        exercises:    exercises.filter(e => doneSet.has(e._id)).map(({ _id, ...rest }) => rest),
       }).catch(err => console.warn("saveWorkoutSession:", err));
     }
-  }, [isComplete, sessionSaved, routine, elapsed, exercises]);
+  }, [isComplete, sessionSaved, routine, elapsed, exercises, doneSet]);
 
   const handleToggle=(id,isDone)=>{
     setDoneSet(prev=>{
@@ -3760,7 +3809,7 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
       {/* List */}
       <div ref={listScrollRef} style={{ flex:1,overflowY:"auto",padding:"16px 20px 24px" }}>
         {exercises.map((ex,i)=>(
-          <ExerciseRow key={ex._id} ex={ex} idx={i} accent={routine.color}
+          <ExerciseRow key={ex._id} ex={ex} idx={i} accent={routine.color} finished={isComplete}
             onToggle={(isDone)=>handleToggle(ex._id,isDone)}
             onUpdate={(patch)=>setExercises(prev=>prev.map(e=>e._id===ex._id?{...e,...patch}:e))}
             onSwap={()=>setSwappingId(ex._id)}
