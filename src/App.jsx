@@ -737,6 +737,59 @@ const DEFAULT_ROUTINES = [
   },
 ];
 
+/* ── CATÁLOGO DE MÁQUINAS (numeración física del gym) ──
+   Directorio completo de máquinas por número, independiente de las rutinas
+   por defecto — se usa solo para nutrir la lista de presets al agregar un
+   ejercicio (no aparece como tarjeta de rutina en el inicio). */
+const MACHINE_ZONES = [
+  { max:19, name:"Piernas",          emoji:"LEGS",  color:C.accent,  dark:C.accentD },
+  { max:39, name:"Pecho y Espalda",  emoji:"CHEST", color:C.pink,    dark:C.pinkD   },
+  { max:49, name:"Core",             emoji:"CORE",  color:C.accentL, dark:C.accent  },
+  { max:59, name:"Hombros y Brazos", emoji:"ARMS",  color:C.pinkD,   dark:C.accentD },
+  { max:Infinity, name:"Multiestación", emoji:"MULTI", color:C.accentD, dark:C.pinkD },
+];
+const machineZone = (n) => MACHINE_ZONES.find(z => n <= z.max) || MACHINE_ZONES[MACHINE_ZONES.length-1];
+
+const MACHINE_CATALOG = [
+  { machine:1,  name:"Prensa de Piernas",            muscle:"Cuádriceps" },
+  { machine:2,  name:"Extensión de Piernas",         muscle:"Cuádriceps" },
+  { machine:3,  name:"Curl Femoral Acostado",        muscle:"Isquiotibiales" },
+  { machine:4,  name:"Curl Femoral Sentado",         muscle:"Isquiotibiales" },
+  { machine:5,  name:"Abductores",                   muscle:"Glúteo medio" },
+  { machine:6,  name:"Aductores",                    muscle:"Aductores" },
+  { machine:7,  name:"Hip Thrust / Glúteos",         muscle:"Glúteo mayor" },
+  { machine:8,  name:"Elevación de Pantorrillas",    muscle:"Pantorrillas" },
+  { machine:9,  name:"Prensa a 45°",                 muscle:"Cuádriceps" },
+  { machine:10, name:"Hack Squat",                   muscle:"Cuádriceps" },
+  { machine:20, name:"Press de Pecho",               muscle:"Pectoral mayor" },
+  { machine:21, name:"Pec Fly / Deltoides Posterior",muscle:"Pectoral mayor" },
+  { machine:22, name:"Jalón al Pecho",               muscle:"Dorsal ancho" },
+  { machine:23, name:"Remo Sentado",                 muscle:"Dorsal ancho" },
+  { machine:24, name:"Pec Fly",                      muscle:"Pectoral mayor" },
+  { machine:25, name:"Press Inclinado",              muscle:"Pectoral superior" },
+  { machine:26, name:"Remo Bajo",                    muscle:"Dorsal ancho" },
+  { machine:27, name:"Pullover",                     muscle:"Dorsal ancho" },
+  { machine:40, name:"Crunch",                       muscle:"Recto abdominal" },
+  { machine:41, name:"Máquina de Abdominales",       muscle:"Recto abdominal" },
+  { machine:42, name:"Extensión Lumbar",             muscle:"Erectores espinales" },
+  { machine:50, name:"Press de Hombros",             muscle:"Deltoides" },
+  { machine:51, name:"Extensión de Tríceps",         muscle:"Tríceps" },
+  { machine:52, name:"Curl de Bíceps",               muscle:"Bíceps" },
+  { machine:53, name:"Elevación Lateral",            muscle:"Deltoides lateral" },
+  { machine:60, name:"Máquina Smith",                muscle:"Variable (según ejercicio)" },
+  { machine:61, name:"Dominadas/Fondos Asistidos",   muscle:"Dorsal ancho" },
+  { machine:62, name:"Polea Doble (Cable Crossover)",muscle:"Variable (según ejercicio)" },
+];
+
+const MACHINE_CATALOG_EXERCISES = MACHINE_CATALOG.map(ex => {
+  const zone = machineZone(ex.machine);
+  return {
+    name: ex.name, muscle: ex.muscle, machine: ex.machine,
+    sets: 3, reps: 12, weight: 20, rest: 60,
+    _routineName: zone.name, _routineEmoji: zone.emoji, _routineColor: zone.color,
+  };
+});
+
 const STATS_WEEK = [18, 26, 14, 32, 28, 0, 0];
 const DAYS = ["L","M","X","J","V","S","D"];
 const STATS_WEEK_MAX = Math.max(...STATS_WEEK, 1);
@@ -3313,9 +3366,12 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
 };
 
 /* ── EXERCISE SCREEN ── */
-const ALL_PRESET_EXERCISES = DEFAULT_ROUTINES.flatMap(r =>
-  r.exercises.map(ex => ({ ...ex, _routineName: r.name, _routineEmoji: r.emoji, _routineColor: r.color }))
-);
+const ALL_PRESET_EXERCISES = [
+  ...DEFAULT_ROUTINES.flatMap(r =>
+    r.exercises.map(ex => ({ ...ex, _routineName: r.name, _routineEmoji: r.emoji, _routineColor: r.color }))
+  ),
+  ...MACHINE_CATALOG_EXERCISES,
+];
 
 const fmtElapsed = (s) => {
   const m = Math.floor(s / 60), sec = s % 60;
