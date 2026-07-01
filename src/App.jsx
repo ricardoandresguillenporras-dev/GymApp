@@ -123,16 +123,20 @@ export const deleteWorkoutPhoto = async (id) => {
 export const loadWorkoutPhotos = async () => {
   try {
     const rows = await sheetsGet("loadWorkoutPhotos");
-    return (rows ?? []).map(row => ({
-      id:       row.id,
-      label:    row.label,
-      date:     new Date(row.created_at).toLocaleDateString("es-CR", { day: "numeric", month: "short" }),
-      who:      row.who,
-      gradA:    row.grad_a,
-      gradB:    row.grad_b,
-      emoji:    row.routine_emoji,
-      dataURL:  row.public_url, // ya es una URL pública de Drive, no base64
-    }));
+    return (rows ?? []).map(row => {
+      const rawDate = new Date(row.taken_at || row.created_at);
+      return {
+        id:       row.id,
+        label:    row.label,
+        date:     fmtPhotoDate(rawDate),
+        who:      row.who,
+        gradA:    row.grad_a,
+        gradB:    row.grad_b,
+        emoji:    row.routine_emoji,
+        dataURL:  row.public_url, // ya es una URL pública de Drive, no base64
+        rawDate,
+      };
+    });
   } catch (e) {
     console.error("loadWorkoutPhotos:", e.message);
     return null;
@@ -238,6 +242,7 @@ const useGlobalStyles = () => {
       @keyframes heartBeat { 0%,100%{transform:scale(1)} 14%{transform:scale(1.3)} 28%{transform:scale(1)} 42%{transform:scale(1.3)} 70%{transform:scale(1)} }
       @keyframes ripple { 0%{transform:scale(0.8);opacity:0.8} 100%{transform:scale(2.4);opacity:0} }
       @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+      @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
       @keyframes checkDraw { from{stroke-dashoffset:24} to{stroke-dashoffset:0} }
       @keyframes glowRing { 0%,100%{box-shadow:0 0 0 0 rgba(255,165,82,0.35)} 50%{box-shadow:0 0 0 14px rgba(255,165,82,0)} }
       @keyframes countdownPop { 0%{transform:scale(1.4);opacity:0} 30%{opacity:1} 100%{transform:scale(1);opacity:1} }
@@ -740,7 +745,7 @@ const _jsDay = new Date().getDay();
 const STATS_TODAY_IDX = _jsDay === 0 ? 6 : _jsDay - 1;
 
 /* ── PHOTO DATA ── */
-const makePhoto = (id,label,date,who,gradA,gradB,emoji,dataURL=null) => ({id,label,date,who,gradA,gradB,emoji,dataURL});
+const makePhoto = (id,label,date,who,gradA,gradB,emoji,dataURL=null,rawDate=null) => ({id,label,date,who,gradA,gradB,emoji,dataURL,rawDate});
 
 /* ── ALMACENAMIENTO DE FOTOS (carpeta etiquetada en el dispositivo) ──
    Usa el plugin Filesystem de Capacitor cuando la app corre empacada
@@ -893,41 +898,189 @@ const fileToSquareDataURL = (file) => new Promise((resolve, reject) => {
 });
 
 
+/* ── LECTURA DE FECHA EXIF (sin dependencias) ──
+   La mayoría de fotos de cámara/galería llevan la fecha real de captura
+   incrustada en el segmento EXIF del JPEG (tag DateTimeOriginal, 0x9003;
+   si no existe, cae a DateTime, 0x0132, en el IFD0). Esto la lee
+   manualmente del ArrayBuffer — no toda imagen la trae (capturas de
+   pantalla, imágenes editadas/exportadas, PNG, HEIC), en cuyo caso
+   resuelve a null y el caller usa la hora actual como respaldo. */
+const readIFDEntryCount = (view, ifdOffset, little) => view.getUint16(ifdOffset, little);
+
+const readIFDPointerTag = (view, tiffOffset, ifdOffset, little, tag) => {
+  const count = readIFDEntryCount(view, ifdOffset, little);
+  for (let i = 0; i < count; i++) {
+    const entryOffset = ifdOffset + 2 + i * 12;
+    if (view.getUint16(entryOffset, little) === tag) return view.getUint32(entryOffset + 8, little);
+  }
+  return null;
+};
+
+const readIFDDateTag = (view, tiffOffset, ifdOffset, little, tag) => {
+  const count = readIFDEntryCount(view, ifdOffset, little);
+  for (let i = 0; i < count; i++) {
+    const entryOffset = ifdOffset + 2 + i * 12;
+    if (view.getUint16(entryOffset, little) === tag) {
+      // ASCII "YYYY:MM:DD HH:MM:SS\0" (20 bytes) — stored via offset since >4 bytes
+      const valueOffset = tiffOffset + view.getUint32(entryOffset + 8, little);
+      let str = "";
+      for (let j = 0; j < 19; j++) str += String.fromCharCode(view.getUint8(valueOffset + j));
+      return str;
+    }
+  }
+  return null;
+};
+
+// EXIF dates carry no timezone — treated as local time, matching what the
+// camera/gallery app that wrote them almost always intended.
+const parseExifDateString = (str) => {
+  const m = str && str.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, s] = m.slice(1).map(Number);
+  const date = new Date(y, mo - 1, d, h, mi, s);
+  return isNaN(date.getTime()) ? null : date;
+};
+
+const readExifDate = (file) => new Promise((resolve) => {
+  if (!file || !/jpe?g/i.test(file.type || "")) { resolve(null); return; }
+  const reader = new FileReader();
+  reader.onerror = () => resolve(null);
+  reader.onload = () => {
+    try {
+      const view = new DataView(reader.result);
+      if (view.getUint16(0, false) !== 0xFFD8) { resolve(null); return; } // not a JPEG
+      let offset = 2;
+      const length = view.byteLength;
+      while (offset + 4 <= length) {
+        const marker = view.getUint16(offset, false);
+        offset += 2;
+        if ((marker & 0xFF00) !== 0xFF00) break;      // corrupt/unexpected — bail
+        if (marker === 0xFFDA) break;                  // start of scan — no more metadata ahead
+        const segLength = view.getUint16(offset, false);
+        if (marker === 0xFFE1 && view.getUint32(offset + 2, false) === 0x45786966) {
+          const tiffOffset = offset + 8; // 2 (segLength) + "Exif\0\0" (6)
+          const little = view.getUint16(tiffOffset, false) === 0x4949;
+          const ifd0Offset = tiffOffset + view.getUint32(tiffOffset + 4, little);
+          let dateStr = readIFDDateTag(view, tiffOffset, ifd0Offset, little, 0x0132); // DateTime
+          const exifIFDPtr = readIFDPointerTag(view, tiffOffset, ifd0Offset, little, 0x8769);
+          if (exifIFDPtr != null) {
+            const original = readIFDDateTag(view, tiffOffset, tiffOffset + exifIFDPtr, little, 0x9003); // DateTimeOriginal
+            if (original) dateStr = original;
+          }
+          resolve(parseExifDateString(dateStr));
+          return;
+        }
+        offset += segLength;
+      }
+      resolve(null);
+    } catch (e) { resolve(null); }
+  };
+  // EXIF lives near the start of the file — no need to read the whole image
+  reader.readAsArrayBuffer(file.slice(0, 131072));
+});
+
+// Consistent "date it was taken" formatting shared across the photo grid
+// and the lightbox — matches the style already used for session history.
+const fmtPhotoDate = (date) =>
+  date.toLocaleDateString("es-CR", { weekday: "short", day: "numeric", month: "short" })
+    .replace(/^\w/, c => c.toUpperCase());
+
+// Same-calendar-day check used to match an uploaded photo with the
+// workout session(s) logged on that date.
+const isSameLocalDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+
 /* ── PHOTO LIGHTBOX ── */
-const PhotoLightbox = ({ photo, onClose, onDelete }) => (
-  <div className="anim-fadeIn" onClick={onClose}
-    style={{ position:"fixed",inset:0,zIndex:400,background:"rgba(249,243,234,0.94)",backdropFilter:"blur(16px)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FONT }}>
-    <div onClick={e=>e.stopPropagation()} className="anim-slideUp"
-      style={{ width:300,borderRadius:24,overflow:"hidden",boxShadow:`0 32px 80px rgba(0,0,0,0.6)` }}>
-      <div style={{ height:300,position:"relative",background: photo.dataURL ? "#000" : `linear-gradient(145deg,${photo.gradA},${photo.gradB})`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden" }}>
-        {photo.dataURL ? (
-          <img src={photo.dataURL} alt={photo.label} style={{ position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover" }}/>
-        ) : (
-          <svg width="34%" height="34%" viewBox="0 0 24 24" fill="none" opacity="0.3">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="12" cy="13" r="4" stroke="#fff" strokeWidth="1.6"/>
-          </svg>
-        )}
-        {/* Emoji badge always on top */}
-        <div style={{ position:"absolute",top:12,right:12,width:36,height:36,borderRadius:"50%",background:"rgba(255,255,255,0.9)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 12px rgba(0,0,0,0.2)",zIndex:1 }}></div>
-      </div>
-      <div style={{ background:C.s1,padding:"18px 20px" }}>
-        <div style={{ fontSize:17,fontWeight:800,color:C.t1 }}>{photo.label}</div>
-        <div style={{ fontSize:13,color:C.t2,marginTop:4 }}>{photo.date} · {photo.who}</div>
-        {onDelete && (
-          <button className="pressable" onClick={()=>onDelete(photo)}
-            style={{ marginTop:14,width:"100%",background:"none",border:`1.5px solid ${C.accent}33`,borderRadius:16,padding:"10px",fontSize:13,fontWeight:700,color:C.accent,cursor:"pointer",fontFamily:FONT }}>
-            Eliminar foto
+const PhotoLightbox = ({ photo, onClose, onDelete }) => {
+  const [expandedSessionId, setExpandedSessionId] = useState(null);
+  const sessions = photo.matchedSessions || [];
+
+  return (
+    <div className="anim-fadeIn" onClick={onClose}
+      style={{ position:"fixed",inset:0,zIndex:400,background:"rgba(249,243,234,0.94)",backdropFilter:"blur(16px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:FONT }}>
+      <div onClick={e=>e.stopPropagation()} className="anim-slideUp"
+        style={{ width:340,maxHeight:"88vh",display:"flex",flexDirection:"column",borderRadius:26,overflow:"hidden",boxShadow:"0 32px 80px rgba(0,0,0,0.6)" }}>
+
+        {/* Photo — bigger, with a date pill overlaid at the top */}
+        <div style={{ height:340,flexShrink:0,position:"relative",background: photo.dataURL ? "#000" : `linear-gradient(145deg,${photo.gradA},${photo.gradB})`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden" }}>
+          {photo.dataURL ? (
+            <img src={photo.dataURL} alt={photo.label} style={{ position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover" }}/>
+          ) : (
+            <svg width="34%" height="34%" viewBox="0 0 24 24" fill="none" opacity="0.3">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="12" cy="13" r="4" stroke="#fff" strokeWidth="1.6"/>
+            </svg>
+          )}
+          {/* Top fade so the date pill stays legible over any image */}
+          <div style={{ position:"absolute",top:0,left:0,right:0,height:64,background:"linear-gradient(rgba(0,0,0,0.45),transparent)",pointerEvents:"none" }}/>
+          <div style={{ position:"absolute",top:14,left:14,display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.9)",backdropFilter:"blur(6px)",borderRadius:14,padding:"6px 12px",boxShadow:"0 3px 12px rgba(0,0,0,0.2)" }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="5" width="18" height="16" rx="3" stroke={C.accent} strokeWidth="2"/>
+              <path d="M3 10h18M8 3v4M16 3v4" stroke={C.accent} strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            <span style={{ fontSize:12,fontWeight:700,color:C.t1 }}>{photo.date}</span>
+          </div>
+        </div>
+
+        <div style={{ background:C.s1,padding:"18px 20px 20px",overflowY:"auto" }}>
+          <div style={{ fontSize:17,fontWeight:800,color:C.t1 }}>{photo.label}</div>
+          <div style={{ fontSize:13,color:C.t2,marginTop:4 }}>{photo.date} · {photo.who}</div>
+
+          {/* Entrenamiento de ese día — dropdown matched by date */}
+          <div style={{ marginTop:14 }}>
+            <div style={{ fontSize:10,fontWeight:700,color:C.t3,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8 }}>Entrenamiento de ese día</div>
+            {sessions.length === 0 ? (
+              <div style={{ fontSize:12,color:C.t3,fontStyle:"italic",padding:"10px 2px" }}>Sin entrenamiento registrado ese día</div>
+            ) : sessions.map(session => {
+              const isOpen = expandedSessionId === session.id;
+              return (
+                <div key={session.id}
+                  style={{ background:C.s2,borderRadius:16,border:`1px solid ${isOpen?session.routineColor+"55":C.s3}`,marginBottom:8,overflow:"hidden",transition:"border-color 0.25s" }}>
+                  <div className="pressable" onClick={()=>setExpandedSessionId(isOpen?null:session.id)}
+                    style={{ display:"flex",alignItems:"center",gap:10,padding:"11px 13px",cursor:"pointer" }}>
+                    <div style={{ width:9,height:9,borderRadius:"50%",background:session.routineColor,flexShrink:0,boxShadow:`0 0 6px ${session.routineColor}80` }}/>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontSize:13,fontWeight:800,color:C.t1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{session.routineName}</div>
+                      <div style={{ fontSize:11,color:C.t3,marginTop:1 }}>{session.durationMin} min · {session.exercises.length} ejerc.</div>
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"
+                      style={{ flexShrink:0,transform:isOpen?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.25s cubic-bezier(.22,1,.36,1)",opacity:0.45 }}>
+                      <path d="M4 6L8 10L12 6" stroke={C.t1} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  {isOpen && (
+                    <div className="anim-slideDown" style={{ padding:"0 13px 12px",borderTop:`1px solid ${C.s3}` }}>
+                      <div style={{ paddingTop:10,display:"flex",flexDirection:"column",gap:5 }}>
+                        {session.exercises.map((ex,i)=>(
+                          <div key={i} style={{ display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:12,background:i%2===0?C.s1:C.bg }}>
+                            <span style={{ flex:1,fontSize:12,fontWeight:600,color:C.t1 }}>{ex.name}</span>
+                            <span style={{ fontSize:10,color:C.t3,whiteSpace:"nowrap" }}>{ex.sets}×{ex.reps}{ex.weight>0?` · ${ex.weight}kg`:""}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {onDelete && (
+            <button className="pressable" onClick={()=>onDelete(photo)}
+              style={{ marginTop:6,width:"100%",background:"none",border:`1.5px solid ${C.accent}33`,borderRadius:16,padding:"10px",fontSize:13,fontWeight:700,color:C.accent,cursor:"pointer",fontFamily:FONT }}>
+              Eliminar foto
+            </button>
+          )}
+          <button className="pressable" onClick={onClose}
+            style={{ marginTop:10,width:"100%",background:C.s2,border:"none",borderRadius:16,padding:"11px",fontSize:14,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT }}>
+            Cerrar
           </button>
-        )}
-        <button className="pressable" onClick={onClose}
-          style={{ marginTop:10,width:"100%",background:C.s2,border:"none",borderRadius:16,padding:"11px",fontSize:14,fontWeight:700,color:C.t2,cursor:"pointer",fontFamily:FONT }}>
-          Cerrar
-        </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ── PHOTO CARD ── */
 const PhotoCard = ({ photo, onTap }) => (
@@ -943,7 +1096,9 @@ const PhotoCard = ({ photo, onTap }) => (
         </svg>
       </div>
     )}
-    <div style={{ position:"absolute",top:8,left:8,width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.85)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,backdropFilter:"blur(4px)" }}></div>
+    {photo.emoji && (
+      <div style={{ position:"absolute",top:8,left:8,width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.85)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,backdropFilter:"blur(4px)" }}>{photo.emoji}</div>
+    )}
     <div style={{ position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.52))",padding:"18px 10px 8px" }}>
       <div style={{ fontSize:11,fontWeight:700,color:"#fff",lineHeight:1.2 }}>{photo.label}</div>
       <div style={{ fontSize:9,color:"rgba(255,255,255,0.75)",marginTop:2 }}>{photo.date}</div>
@@ -951,7 +1106,12 @@ const PhotoCard = ({ photo, onTap }) => (
   </div>
 );
 
-/* ── CAMERA MODAL ── */
+/* ── CAMERA MODAL ──
+   Currently unused: "Historial del gym" now uploads existing photos from
+   the device gallery (with EXIF-date matching) instead of live-capturing
+   with the camera. Left in place, untouched, in case in-app capture is
+   reintroduced later — it's a fully self-contained component with no
+   external references once its call site in HomeScreen was removed. */
 const CameraModal = ({ onClose, onCapture, routineEmoji = "" }) => {
   const videoRef       = useRef(null);
   const canvasRef      = useRef(null);
@@ -1455,40 +1615,76 @@ const StartWorkoutModal = ({ routine, onConfirm, onClose }) => {
 const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRoutine, onOpenRoutinePicker, onOpenStartConfirm, onOpenLightbox, onGoStats, deletePhotoRef, onOpenPartnerManager, partnerActive, partnerCode }) => {
   const [photos,setPhotos]=useState([]);
   const [photosLoading,setPhotosLoading]=useState(true);
-  const [showCamera,setShowCamera]=useState(false);
-  const [cameraFabVisible,setCameraFabVisible]=useState(false);
+  const [workoutSessions,setWorkoutSessions]=useState([]);
+  const [uploadFabVisible,setUploadFabVisible]=useState(false);
+  const [uploadingPhoto,setUploadingPhoto]=useState(false);
   const [showToast,setShowToast]=useState(false);
   const [toastMsg,setToastMsg]=useState("");
   const [profilePhoto,setProfilePhoto]=useState(null);
   const [profileUploading,setProfileUploading]=useState(false);
   const historialRef=useRef(null);
+  const photoInputRef=useRef(null);
 
   const fireToast=(msg)=>{ setToastMsg(msg); setShowToast(true); setTimeout(()=>setShowToast(false),2200); };
 
-  /* Carga inicial de fotos reales desde la carpeta del dispositivo */
+  /* Carga inicial de fotos reales desde la carpeta del dispositivo, más el
+     historial de entrenos (para poder cruzarlo por fecha con cada foto). */
   useEffect(()=>{
     let mounted=true;
     loadStoredPhotos().then(list=>{ if(mounted){ setPhotos(list); setPhotosLoading(false); } });
     loadProfilePhoto().then(url=>{ if(mounted) setProfilePhoto(url); });
+    loadWorkoutSessions(200).then(rows=>{
+      if(!mounted || !rows) return;
+      setWorkoutSessions(rows.map(r=>({
+        id: r.id,
+        rawDate: new Date(r.created_at),
+        routineName: r.routine_name,
+        routineColor: r.routine_color,
+        durationMin: r.duration_min,
+        exercises: r.exercises ?? [],
+      })));
+    });
     return ()=>{ mounted=false; };
   },[]);
 
   useEffect(()=>{
     const el=historialRef.current;
     if(!el)return;
-    const obs=new IntersectionObserver(([entry])=>setCameraFabVisible(entry.isIntersecting),{threshold:0.15});
+    const obs=new IntersectionObserver(([entry])=>setUploadFabVisible(entry.isIntersecting),{threshold:0.15});
     obs.observe(el);
     return()=>obs.disconnect();
   },[]);
 
-  const handleCapture=useCallback((captured)=>{
-    const label = todayRoutine?.name || "Entrenamiento";
-    const emoji = todayRoutine?.emoji || "";
-    const photo = makePhoto(Date.now(), label, "Ahora mismo", "Tú", null, null, emoji, captured.dataURL);
-    setPhotos(prev=>[photo, ...prev]);
-    persistNewPhoto(photo);
-    fireToast("¡Foto añadida!");
+  /* Sube una foto de la galería del dispositivo, en vez de tomarla con la
+     cámara: lee su fecha real desde el EXIF cuando está disponible (si no,
+     usa el momento de la subida) y la usa para emparejar la foto con el
+     entrenamiento de ese mismo día en el historial. */
+  const handleUploadPhoto=useCallback(async (file)=>{
+    if(!file) return;
+    setUploadingPhoto(true);
+    try {
+      const [dataURL, exifDate] = await Promise.all([
+        fileToSquareDataURL(file),
+        readExifDate(file),
+      ]);
+      const takenAt = exifDate || new Date();
+      const label = todayRoutine?.name || "Progreso";
+      const photo = makePhoto(Date.now(), label, fmtPhotoDate(takenAt), "Tú", null, null, "", dataURL, takenAt);
+      setPhotos(prev=>[photo, ...prev].sort((a,b)=> new Date(b.rawDate||0) - new Date(a.rawDate||0)));
+      persistNewPhoto({ ...photo, takenAt: takenAt.toISOString() });
+      fireToast(exifDate ? "¡Foto añadida con su fecha original!" : "¡Foto añadida!");
+    } catch (e) {
+      fireToast("No se pudo subir la foto");
+    } finally {
+      setUploadingPhoto(false);
+    }
   },[todayRoutine]);
+
+  const handlePhotoInputChange=useCallback((e)=>{
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ""; // allow picking the same file again later
+    if(file) handleUploadPhoto(file);
+  },[handleUploadPhoto]);
 
   const handleDeletePhoto=useCallback((photo)=>{
     haptic.medium();
@@ -1505,6 +1701,16 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
     if (deletePhotoRef) deletePhotoRef.current = handleDeletePhoto;
     return () => { if (deletePhotoRef) deletePhotoRef.current = null; };
   }, [deletePhotoRef, handleDeletePhoto]);
+
+  // Opens the lightbox with that day's training sessions already attached,
+  // so the dropdown inside it has no fetching/matching logic of its own.
+  const handleOpenLightbox=useCallback((photo)=>{
+    const photoDay = photo.rawDate ? new Date(photo.rawDate) : null;
+    const matchedSessions = photoDay
+      ? workoutSessions.filter(s => isSameLocalDay(s.rawDate, photoDay))
+      : [];
+    onOpenLightbox({ ...photo, matchedSessions });
+  },[onOpenLightbox, workoutSessions]);
 
   const greetingDate = useMemo(() => {
     const now = new Date();
@@ -1527,7 +1733,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
 
   return (
     <div style={{ flex:1,overflowY:"auto",background:C.bg,fontFamily:FONT,position:"relative" }}>
-      {showCamera&&<CameraModal onClose={()=>setShowCamera(false)} onCapture={handleCapture} routineEmoji={""}/>}
+      <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoInputChange} style={{ display:"none" }}/>
       <Toast message={toastMsg} show={showToast}/>
 
       {/* Greeting */}
@@ -1638,12 +1844,17 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
             <Label>Historial del gym</Label>
             <div style={{ fontSize:11,color:C.t3,marginTop:4 }}>{photos.length} fotos juntos</div>
           </div>
-          <button className="pressable" onClick={()=>setShowCamera(true)} style={{ display:"flex",alignItems:"center",gap:6,background:C.accent,border:"none",borderRadius:16,padding:"8px 16px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:FONT }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="12" cy="13" r="4" stroke="#fff" strokeWidth="2"/>
-            </svg>
-            Nueva foto
+          <button className="pressable" disabled={uploadingPhoto} onClick={()=>photoInputRef.current?.click()} style={{ display:"flex",alignItems:"center",gap:6,background:C.accent,border:"none",borderRadius:16,padding:"8px 16px",color:"#fff",fontSize:12,fontWeight:700,cursor:uploadingPhoto?"default":"pointer",fontFamily:FONT,opacity:uploadingPhoto?0.7:1 }}>
+            {uploadingPhoto ? (
+              <div style={{ width:14,height:14,borderRadius:"50%",border:"2px solid rgba(255,255,255,0.35)",borderTopColor:"#fff",animation:"spin 0.7s linear infinite" }}/>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <polyline points="17 8 12 3 7 8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="12" y1="3" x2="12" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+            {uploadingPhoto ? "Subiendo…" : "Subir foto"}
           </button>
         </div>
         {photosLoading ? (
@@ -1653,29 +1864,34 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
         ) : photos.length===0 ? (
           <div style={{ textAlign:"center",padding:"36px 20px",color:C.t3 }}>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style={{ marginBottom:10,opacity:0.5 }}>
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke={C.t3} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="12" cy="13" r="4" stroke={C.t3} strokeWidth="1.6"/>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke={C.t3} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <polyline points="17 8 12 3 7 8" stroke={C.t3} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <line x1="12" y1="3" x2="12" y2="15" stroke={C.t3} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <div style={{ fontSize:13,fontWeight:600 }}>Aún no hay fotos</div>
-            <div style={{ fontSize:12,marginTop:4 }}>Toma la primera foto de su entrenamiento juntos</div>
+            <div style={{ fontSize:12,marginTop:4 }}>Sube la primera foto de su entrenamiento juntos</div>
           </div>
         ) : (
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
-            {photos.map(photo=><PhotoCard key={photo.id} photo={photo} onTap={onOpenLightbox}/>)}
+            {photos.map(photo=><PhotoCard key={photo.id} photo={photo} onTap={handleOpenLightbox}/>)}
           </div>
         )}
         <div style={{ height:24 }}/>
       </div>
 
-      {/* Camera FAB — safe distance from tab bar */}
-      <div style={{ position:"fixed",bottom:88,left:"50%",transform:`translateX(-50%) translateY(${cameraFabVisible?0:20}px)`,opacity:cameraFabVisible?1:0,transition:"all 0.35s cubic-bezier(.34,1.56,.64,1)",zIndex:150,pointerEvents:cameraFabVisible?"auto":"none" }}>
-        <button className="pressable" onClick={()=>setShowCamera(true)} style={{ display:"flex",alignItems:"center",gap:10,background:C.accent,border:"none",borderRadius:16,padding:"13px 24px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FONT,boxShadow:`0 8px 28px ${C.accent}55`,whiteSpace:"nowrap" }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="12" cy="13" r="4" stroke="#fff" strokeWidth="2"/>
-          </svg>
-          Subir foto
-
+      {/* Upload FAB — safe distance from tab bar */}
+      <div style={{ position:"fixed",bottom:88,left:"50%",transform:`translateX(-50%) translateY(${uploadFabVisible?0:20}px)`,opacity:uploadFabVisible?1:0,transition:"all 0.35s cubic-bezier(.34,1.56,.64,1)",zIndex:150,pointerEvents:uploadFabVisible?"auto":"none" }}>
+        <button className="pressable" disabled={uploadingPhoto} onClick={()=>photoInputRef.current?.click()} style={{ display:"flex",alignItems:"center",gap:10,background:C.accent,border:"none",borderRadius:16,padding:"13px 24px",color:"#fff",fontSize:13,fontWeight:700,cursor:uploadingPhoto?"default":"pointer",fontFamily:FONT,boxShadow:`0 8px 28px ${C.accent}55`,whiteSpace:"nowrap",opacity:uploadingPhoto?0.7:1 }}>
+          {uploadingPhoto ? (
+            <div style={{ width:18,height:18,borderRadius:"50%",border:"2px solid rgba(255,255,255,0.35)",borderTopColor:"#fff",animation:"spin 0.7s linear infinite" }}/>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <polyline points="17 8 12 3 7 8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <line x1="12" y1="3" x2="12" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+          {uploadingPhoto ? "Subiendo…" : "Subir foto"}
         </button>
       </div>
     </div>

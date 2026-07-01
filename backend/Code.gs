@@ -29,10 +29,17 @@ const SHEET_PHOTOS    = "workout_photos";
 const DRIVE_FOLDER_NAME = "GymApp Photos";
 
 // ── Column schemas (orden importa — debe coincidir con los headers) ──────
+// ⚠️ MIGRACIÓN MANUAL REQUERIDA: se agregó "taken_at" al final de
+// SHEET_PHOTOS (fecha real de captura, leída del EXIF de la foto en el
+// cliente). upsertRow() escribe por POSICIÓN según este array, así que en
+// el Sheet ya desplegado hay que agregar manualmente el texto "taken_at"
+// en la celda de encabezado siguiente a "created_at" (misma fila 1, una
+// columna a la derecha) — sin eso, rowsToObjects() no expondrá esta
+// columna al leer, aunque upsertRow ya la esté escribiendo.
 const SCHEMAS = {
   [SHEET_ROUTINES]: ["id", "session_id", "name", "sub", "emoji", "color", "dark", "duration", "difficulty", "exercises_json", "updated_at"],
   [SHEET_SESSIONS]: ["id", "session_id", "routine_id", "routine_name", "routine_color", "duration_min", "exercises_json", "created_at"],
-  [SHEET_PHOTOS]:    ["id", "session_id", "drive_file_id", "public_url", "label", "who", "routine_emoji", "grad_a", "grad_b", "created_at"],
+  [SHEET_PHOTOS]:    ["id", "session_id", "drive_file_id", "public_url", "label", "who", "routine_emoji", "grad_a", "grad_b", "created_at", "taken_at"],
 };
 
 // ── Entry points ───────────────────────────────────────────────────────
@@ -225,6 +232,11 @@ function uploadWorkoutPhoto(photo, sessionId) {
     ? String(photo.id)
     : Utilities.getUuid();
   const now = new Date().toISOString();
+  // photo.takenAt: ISO string the client derived from the JPEG's EXIF
+  // DateTimeOriginal, when readable. Falls back to the upload timestamp
+  // for photos without EXIF (screenshots, edited exports, etc.) so the
+  // gym-history matching on the client always has a date to work with.
+  const takenAt = photo.takenAt || now;
   upsertRow(SHEET_PHOTOS, id, {
     id: id,
     session_id: sessionId,
@@ -235,10 +247,11 @@ function uploadWorkoutPhoto(photo, sessionId) {
     routine_emoji: photo.emoji || "",
     grad_a: photo.gradA || "",
     grad_b: photo.gradB || "",
+    taken_at: takenAt,
     created_at: now,
   });
 
-  return { id: id, public_url: publicUrl, created_at: now };
+  return { id: id, public_url: publicUrl, taken_at: takenAt, created_at: now };
 }
 
 function deleteWorkoutPhoto(id) {
