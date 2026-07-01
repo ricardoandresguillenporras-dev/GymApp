@@ -221,9 +221,9 @@ const C = {
   bearL:   "#FFBF7A",
 };
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const FONT_DISPLAY = "'Barlow Condensed', 'Inter', sans-serif";
-const FONT_SERIF = "'Playfair Display', 'Georgia', serif";
+const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+const FONT_DISPLAY = "'Barlow Condensed', 'Plus Jakarta Sans', sans-serif";
+const FONT_HEAD = "'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif";
 
 const useGlobalStyles = () => {
   useEffect(() => {
@@ -232,7 +232,7 @@ const useGlobalStyles = () => {
     const s = document.createElement("style");
     s.id = id;
     s.textContent = `
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@600;700;800;900&family=Playfair+Display:wght@400;700;900&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,600..900&display=swap');
       *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
       html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
       @keyframes fadeUp { from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)} }
@@ -2327,7 +2327,7 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
       {editingRoutine&&<EditRoutineModal routine={editingRoutine} onSave={handleSave} onClose={closeEditor} isNew={isCreatingRoutine}/>}
       <div style={{ flex:1,overflowY:"auto",background:C.bg,fontFamily:FONT }}>
         <div style={{ padding:"16px 22px 0" }}>
-          <div style={{ fontSize:32,fontWeight:900,color:C.t1,letterSpacing:"-0.5px",marginBottom:4,fontFamily:FONT_SERIF }}>Rutinas</div>
+          <div style={{ fontSize:32,fontWeight:900,color:C.t1,letterSpacing:"-0.5px",marginBottom:4,fontFamily:FONT_HEAD }}>Rutinas</div>
           <div style={{ fontSize:13,color:C.t2,marginBottom:20,fontFamily:FONT,letterSpacing:"0.04em" }}>Escoge y entrena juntos</div>
         </div>
         <div style={{ padding:"0 22px 24px",display:"flex",flexDirection:"column",gap:18 }}>
@@ -2343,7 +2343,7 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
                 <div style={{ position:"absolute",top:-36,right:-24,width:130,height:130,borderRadius:"50%",background:"radial-gradient(circle, rgba(255,255,255,0.22), transparent 72%)",pointerEvents:"none" }}/>
                 <div style={{ position:"relative",flex:1,minWidth:0 }}>
                   <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.75)",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5 }}>{r.sub}</div>
-                  <div style={{ fontSize:20,fontWeight:900,color:"#fff",letterSpacing:"-0.2px",fontFamily:FONT_SERIF,lineHeight:1.15 }}>{r.name}</div>
+                  <div style={{ fontSize:20,fontWeight:900,color:"#fff",letterSpacing:"-0.2px",fontFamily:FONT_HEAD,lineHeight:1.15 }}>{r.name}</div>
                 </div>
               </div>
               <div style={{ padding:"16px 20px 20px" }}>
@@ -2587,7 +2587,7 @@ const StatsScreen = () => {
     <div style={{ flex:1,overflowY:"auto",background:C.bg,fontFamily:FONT,padding:"16px 22px 32px" }}>
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:24 }}>
         <div>
-          <div style={{ fontSize:32,fontWeight:900,color:C.t1,letterSpacing:"-0.5px",fontFamily:FONT_SERIF }}>Estadísticas</div>
+          <div style={{ fontSize:32,fontWeight:900,color:C.t1,letterSpacing:"-0.5px",fontFamily:FONT_HEAD }}>Estadísticas</div>
           <div style={{ fontSize:13,color:C.t2,marginTop:2,letterSpacing:"0.04em" }}>Tu progreso</div>
         </div>
         <div style={{ display:"flex",background:C.s2,borderRadius:999,padding:3,gap:2 }}>
