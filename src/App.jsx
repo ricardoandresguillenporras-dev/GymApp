@@ -2325,16 +2325,6 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
   return (
     <>
       {editingRoutine&&<EditRoutineModal routine={editingRoutine} onSave={handleSave} onClose={closeEditor} isNew={isCreatingRoutine}/>}
-      {/* Shared filter defs — zero-size, referenced by every card header below
-          via url(#routineGrain) so the grain texture isn't recomputed per card. */}
-      <svg width="0" height="0" style={{ position:"absolute" }} aria-hidden="true">
-        <defs>
-          <filter id="routineGrain">
-            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" result="n"/>
-            <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0"/>
-          </filter>
-        </defs>
-      </svg>
       <div style={{ flex:1,overflowY:"auto",background:C.bg,fontFamily:FONT }}>
         <div style={{ padding:"16px 22px 0" }}>
           <div style={{ fontSize:32,fontWeight:900,color:C.t1,letterSpacing:"-0.5px",marginBottom:4,fontFamily:FONT_SERIF }}>Rutinas</div>
@@ -2343,29 +2333,17 @@ const RoutinesScreen = ({ routines, onSelect, onUpdateRoutines }) => {
         <div style={{ padding:"0 22px 24px",display:"flex",flexDirection:"column",gap:18 }}>
           {routines.map((r,i)=>(
             <div key={r.id} className="anim-fadeUp pressable" onClick={()=>onSelect(r)} style={{ borderRadius:24,overflow:"hidden",background:C.s1,border:`1px solid ${C.s3}`,animationDelay:`${i*0.08}s`,boxShadow:"0 4px 20px rgba(0,0,0,0.07)",cursor:"pointer" }}>
-              {/* Full-bleed hero header — mesh-gradient aurora + flowing wave art, keeps r.color/r.dark */}
+              {/* Hero header — calm two-stop gradient with a single quiet highlight,
+                  kept light on layers so it reads clean rather than busy. */}
               <div style={{
-                height:112,position:"relative",display:"flex",alignItems:"flex-end",padding:"0 20px 18px",overflow:"hidden",
-                boxShadow:"inset 0 1px 0 rgba(255,255,255,0.28)",
-                background:`
-                  radial-gradient(ellipse 58% 62% at 88% -4%, rgba(255,255,255,0.55), transparent 62%),
-                  radial-gradient(ellipse 65% 55% at 2% 108%, rgba(0,0,0,0.22), transparent 68%),
-                  linear-gradient(155deg, ${r.dark} 0%, ${r.color} 68%)
-                `,
+                height:96,position:"relative",display:"flex",alignItems:"center",padding:"0 20px",overflow:"hidden",
+                background:`linear-gradient(135deg, ${r.dark} 0%, ${r.color} 100%)`,
               }}>
-                {/* Flowing translucent wave bands, softened — echoes the reference wave art */}
-                <svg width="100%" height="100%" viewBox="0 0 400 112" preserveAspectRatio="none" style={{ position:"absolute",inset:0,pointerEvents:"none",filter:"blur(3px)" }}>
-                  <path d="M-10,82 C50,48 100,110 160,80 C220,52 265,96 320,72 C355,58 385,68 410,62 L410,122 L-10,122 Z" fill="rgba(0,0,0,0.16)"/>
-                  <path d="M-10,98 C65,64 140,114 210,86 C270,64 310,80 360,76 C382,74 396,78 410,80 L410,122 L-10,122 Z" fill="rgba(255,255,255,0.14)"/>
-                  <path d="M-10,22 C75,-6 155,30 235,6 C295,-12 345,12 410,-4 L410,-14 L-10,-14 Z" fill="rgba(255,255,255,0.16)"/>
-                </svg>
-                {/* Fine grain — the tactile, non-flat finish of premium surfaces */}
-                <div style={{ position:"absolute",inset:0,filter:"url(#routineGrain)",opacity:0.6,mixBlendMode:"overlay",pointerEvents:"none" }}/>
-                {/* Soft blend into the card body instead of a hard cut */}
-                <div style={{ position:"absolute",left:0,right:0,bottom:0,height:26,background:`linear-gradient(to bottom, transparent, ${C.s1})`,pointerEvents:"none" }}/>
+                {/* One soft glow, tucked in the corner — quiet dimension without noise */}
+                <div style={{ position:"absolute",top:-36,right:-24,width:130,height:130,borderRadius:"50%",background:"radial-gradient(circle, rgba(255,255,255,0.22), transparent 72%)",pointerEvents:"none" }}/>
                 <div style={{ position:"relative",flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.8)",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,textShadow:"0 1px 4px rgba(0,0,0,0.18)" }}>{r.sub}</div>
-                  <div style={{ fontSize:21,fontWeight:900,color:"#fff",letterSpacing:"-0.2px",fontFamily:FONT_SERIF,lineHeight:1.15,textShadow:"0 2px 10px rgba(0,0,0,0.22)" }}>{r.name}</div>
+                  <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.75)",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5 }}>{r.sub}</div>
+                  <div style={{ fontSize:20,fontWeight:900,color:"#fff",letterSpacing:"-0.2px",fontFamily:FONT_SERIF,lineHeight:1.15 }}>{r.name}</div>
                 </div>
               </div>
               <div style={{ padding:"16px 20px 20px" }}>
