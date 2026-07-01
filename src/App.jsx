@@ -867,17 +867,10 @@ const writeManifest = async (Filesystem, Directory, list) => {
   await Filesystem.writeFile({ path: MANIFEST_PATH, directory: Directory.Data, data: JSON.stringify(list), encoding: "utf8" });
 };
 
-const loadStoredPhotos = async () => {
-  // 1️⃣ Try the Sheets backend first
-  const remote = await loadWorkoutPhotos();
-  // `remote` is an array (possibly empty) on success, or `null` if the
-  // request failed — only trust it on success. Previously this checked
-  // `remote.length >= 0`, which is true for ANY array including [], so a
-  // transient network error (which still resolves to []) silently wiped
-  // the whole gallery instead of falling back to the device's own copy.
-  if (remote !== null) return remote;
-
-  // 2️⃣ Capacitor native FS (offline / packaged app)
+const loadLocalPhotos = async () => {
+  // The durable, on-device copy — this is what `persistNewPhoto` writes to
+  // (awaited) before it ever returns, so it reliably reflects every photo
+  // the user has added on this device, independent of the remote backend.
   const cap = await getCapacitorFS();
   if (cap) {
     const { Filesystem, Directory } = cap;
@@ -890,11 +883,32 @@ const loadStoredPhotos = async () => {
       } catch (e) { return p; }
     }));
   }
-  // 3️⃣ localStorage fallback (browser preview)
   try {
     const raw = localStorage.getItem(LOCAL_FALLBACK_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch (e) { return []; }
+};
+
+const loadStoredPhotos = async () => {
+  // Fetch the remote gallery (shared source of truth, e.g. for syncing a
+  // partner's uploads) and the local on-device copy in parallel.
+  const [local, remote] = await Promise.all([
+    loadLocalPhotos().catch(() => []),
+    loadWorkoutPhotos(),
+  ]);
+  // `remote` is an array (possibly empty) on success, or `null` if the
+  // request failed. On success, MERGE it with the local copy rather than
+  // trusting it blindly — `persistNewPhoto` fires the remote upload as
+  // fire-and-forget, so a photo can be durably saved on-device and still
+  // be missing from the remote gallery for a while (slow Apps Script
+  // write, transient network hiccup, briefly-offline device). Previously
+  // any successful — but incomplete — remote read would silently overwrite
+  // and "lose" photos that had just been added, e.g. right after leaving
+  // a routine and returning to the home screen.
+  if (remote === null) return local;
+  const byId = new Map(remote.map(p => [p.id, p]));
+  for (const p of local) if (!byId.has(p.id)) byId.set(p.id, p);
+  return Array.from(byId.values()).sort((a, b) => new Date(b.rawDate || 0) - new Date(a.rawDate || 0));
 };
 
 const persistNewPhoto = async (photo) => {
@@ -3558,6 +3572,21 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
   const pct=total>0?doneCount/total:0;
   const isComplete=(doneCount===total&&total>0)||manualComplete;
 
+  // Scrolls the exercise list down to the celebration card the moment the
+  // routine completes (whether every exercise got checked off, or the user
+  // tapped "Finalizar rutina") — otherwise it renders below the fold and
+  // the screen appears to do nothing.
+  const listScrollRef = useRef(null);
+  useEffect(()=>{
+    if (!isComplete) return;
+    const el = listScrollRef.current;
+    if (!el) return;
+    const raf = requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(raf);
+  },[isComplete]);
+
   // Auto-save completed session to Supabase (fires once, whether the
   // routine finished because every exercise got checked off or because
   // the user tapped "Finalizar rutina")
@@ -3657,7 +3686,7 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
       </div>
 
       {/* List */}
-      <div style={{ flex:1,overflowY:"auto",padding:"16px 20px 24px" }}>
+      <div ref={listScrollRef} style={{ flex:1,overflowY:"auto",padding:"16px 20px 24px" }}>
         {exercises.map((ex,i)=>(
           <ExerciseRow key={ex._id} ex={ex} idx={i} accent={routine.color}
             onToggle={(isDone)=>handleToggle(ex._id,isDone)}
