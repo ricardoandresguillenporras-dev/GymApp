@@ -253,9 +253,15 @@ const C = {
   bearL:   "#FFBF7A",
 };
 
-const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
-const FONT_DISPLAY = "'Barlow Condensed', 'Plus Jakarta Sans', sans-serif";
-const FONT_HEAD = "'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif";
+// Rounded, warm type trio — swapped out the geometric grotesque set
+// (Plus Jakarta Sans / Barlow Condensed / Bricolage Grotesque), which kept
+// reading as too formal/corporate for a couples gym app. Nunito/Baloo 2/
+// Fredoka are all soft, friendly, high-weight-range rounded sans faces,
+// and Fredoka in particular matches the type language already used in
+// Música's other apps for a consistent brand feel.
+const FONT = "'Nunito', -apple-system, BlinkMacSystemFont, sans-serif";
+const FONT_DISPLAY = "'Baloo 2', 'Nunito', sans-serif";
+const FONT_HEAD = "'Fredoka', 'Nunito', sans-serif";
 
 const useGlobalStyles = () => {
   useEffect(() => {
@@ -264,7 +270,7 @@ const useGlobalStyles = () => {
     const s = document.createElement("style");
     s.id = id;
     s.textContent = `
-      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,600..900&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Baloo+2:wght@500;600;700;800&family=Fredoka:wght@500;600;700&display=swap');
       *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
       html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
       @keyframes fadeUp { from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)} }
@@ -2614,7 +2620,13 @@ const StatsScreen = () => {
     history.forEach(h => {
       const d = h.rawDate ? new Date(h.rawDate) : null;
       if (!d || isNaN(d.getTime())) return;
-      const mins = h.durationMin || 0;
+      // Coerce to Number: values coming back from the Sheets backend can
+      // arrive as numeric strings (e.g. a cell that was ever typed/edited
+      // as text). `week[dayIdx] += mins` with a string `mins` silently
+      // does STRING concatenation instead of addition (0 + "23" → "023"),
+      // corrupting "Minutos activos" into garbled totals once more than
+      // one session lands on the same day/week.
+      const mins = Number(h.durationMin) || 0;
 
       if (d >= startOfWeek && d < endOfWeek) {
         const jd = d.getDay();
@@ -3559,18 +3571,24 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
   // Keeps the screen from dimming/locking while a routine is in progress —
   // released automatically once the routine is finished or left.
   useKeepAwake(!manualComplete && doneSet.size < exercises.length);
-  useEffect(()=>{
-    const tick = () => setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
-    const id = setInterval(tick, 1000);
-    const onVisible = () => { if (document.visibilityState === "visible") tick(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
-  },[]);
 
   const total=exercises.length;
   const doneCount=doneSet.size;
   const pct=total>0?doneCount/total:0;
   const isComplete=(doneCount===total&&total>0)||manualComplete;
+
+  // Stops ticking once the routine is complete, so the timer freezes at the
+  // duration that actually gets saved instead of continuing to climb while
+  // the user lingers on the celebration screen (which used to make the
+  // on-screen clock and the saved "Minutos activos" disagree).
+  useEffect(()=>{
+    if (isComplete) return;
+    const tick = () => setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+    const id = setInterval(tick, 1000);
+    const onVisible = () => { if (document.visibilityState === "visible") tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
+  },[isComplete]);
 
   // Scrolls the exercise list down to the celebration card the moment the
   // routine completes (whether every exercise got checked off, or the user

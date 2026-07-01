@@ -42,8 +42,8 @@ const C = {
   t2:      '#8B6A4A',
   t3:      '#B8936A',
 };
-const FONT         = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
-const FONT_DISPLAY = "'Barlow Condensed', 'Plus Jakarta Sans', sans-serif";
+const FONT         = "'Nunito', -apple-system, BlinkMacSystemFont, sans-serif";
+const FONT_DISPLAY = "'Baloo 2', 'Nunito', sans-serif";
 
 // ── Dumbbell SVG icon ─────────────────────────────────────────────────────────
 const DumbbellIcon = ({ size = 48, color = C.accent }) => (
