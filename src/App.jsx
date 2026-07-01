@@ -990,6 +990,14 @@ const fmtPhotoDate = (date) =>
 const isSameLocalDay = (a, b) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
+// JS Date -> "yyyy-mm-dd" for binding to a native <input type="date">.
+const toDateInputValue = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
 
 /* ── PHOTO LIGHTBOX ── */
 const PhotoLightbox = ({ photo, onClose, onDelete }) => {
@@ -1079,6 +1087,65 @@ const PhotoLightbox = ({ photo, onClose, onDelete }) => {
         </div>
       </div>
     </div>
+  );
+};
+
+/* ── PHOTO UPLOAD CONFIRM SHEET ──
+   Shown right after picking a photo from the gallery, before it's saved.
+   Portaled to document.body: HomeScreen lives inside SwipeTabContainer's
+   translateX(...) strip, and a transform on an ancestor turns this sheet's
+   position:fixed into "fixed relative to that ancestor" instead of the
+   viewport — the same clipping bug fixed earlier for EditRoutineModal and
+   the Stats day-detail sheet. */
+const PhotoUploadModal = ({ dataURL, date, onDateChange, routines, routineId, onRoutineChange, onConfirm, onCancel }) => {
+  const maxDate = toDateInputValue(new Date());
+  return createPortal(
+    <div className="anim-fadeIn" onClick={onCancel}
+      style={{ position:"fixed",inset:0,zIndex:280,background:"rgba(249,243,234,0.72)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",fontFamily:FONT }}>
+      <div onClick={e=>e.stopPropagation()} className="anim-slideUp"
+        style={{ width:"100%",maxWidth:420,background:C.s1,borderRadius:"28px 28px 0 0",paddingBottom:"calc(20px + env(safe-area-inset-bottom,0px))",border:`1px solid ${C.s3}`,boxShadow:"0 -4px 32px rgba(0,0,0,0.2)" }}>
+        <div style={{ padding:"14px 0 4px",display:"flex",justifyContent:"center" }}>
+          <div style={{ width:36,height:4,borderRadius:999,background:C.s4 }}/>
+        </div>
+        <div style={{ padding:"6px 22px 22px" }}>
+          <div style={{ display:"flex",gap:14,alignItems:"center",marginBottom:20 }}>
+            <img src={dataURL} alt="" style={{ width:60,height:60,borderRadius:16,objectFit:"cover",flexShrink:0,boxShadow:"0 3px 12px rgba(0,0,0,0.15)" }}/>
+            <div>
+              <div style={{ fontSize:16,fontWeight:800,color:C.t1 }}>Añadir foto</div>
+              <div style={{ fontSize:12,color:C.t3,marginTop:2 }}>Confirma la fecha y la rutina</div>
+            </div>
+          </div>
+
+          <div style={{ fontSize:10,fontWeight:700,color:C.t3,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8 }}>Fecha</div>
+          <input type="date" value={date} max={maxDate} onChange={e=>onDateChange(e.target.value)}
+            style={{ width:"100%",padding:"12px 14px",borderRadius:14,border:`1.5px solid ${C.s3}`,background:C.s2,fontSize:14,fontWeight:600,color:C.t1,fontFamily:FONT,marginBottom:20 }}/>
+
+          <div style={{ fontSize:10,fontWeight:700,color:C.t3,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8 }}>Rutina</div>
+          <div style={{ display:"flex",gap:8,overflowX:"auto",paddingBottom:4,marginBottom:24 }}>
+            {routines.map(r=>{
+              const selected = r.id===routineId;
+              return (
+                <button key={r.id} className="pressable" onClick={()=>onRoutineChange(r.id)}
+                  style={{ flexShrink:0,display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:14,border:`1.5px solid ${selected?r.color:C.s3}`,background:selected?`${r.color}18`:C.s2,cursor:"pointer",fontFamily:FONT }}>
+                  <div style={{ width:8,height:8,borderRadius:"50%",background:r.color,flexShrink:0 }}/>
+                  <span style={{ fontSize:12,fontWeight:700,color:selected?r.color:C.t2,whiteSpace:"nowrap" }}>{r.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <button className="pressable" onClick={onConfirm} disabled={!date}
+            style={{ width:"100%",background:C.accent,border:"none",borderRadius:16,padding:"14px",fontSize:14,fontWeight:700,color:"#fff",cursor:date?"pointer":"default",opacity:date?1:0.6,fontFamily:FONT,marginBottom:10 }}>
+            Añadir foto
+          </button>
+          <button className="pressable" onClick={onCancel}
+            style={{ width:"100%",background:"none",border:"none",borderRadius:16,padding:"10px",fontSize:14,fontWeight:600,color:C.t3,cursor:"pointer",fontFamily:FONT }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 
@@ -1617,7 +1684,10 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
   const [photosLoading,setPhotosLoading]=useState(true);
   const [workoutSessions,setWorkoutSessions]=useState([]);
   const [uploadFabVisible,setUploadFabVisible]=useState(false);
-  const [uploadingPhoto,setUploadingPhoto]=useState(false);
+  const [uploadingPhoto,setUploadingPhoto]=useState(false); // brief: reading file + EXIF before the confirm sheet opens
+  const [pendingUpload,setPendingUpload]=useState(null);    // { dataURL } once a file is picked, until confirmed/cancelled
+  const [uploadDate,setUploadDate]=useState("");             // yyyy-mm-dd, bound to the confirm sheet's date input
+  const [uploadRoutineId,setUploadRoutineId]=useState(null);
   const [showToast,setShowToast]=useState(false);
   const [toastMsg,setToastMsg]=useState("");
   const [profilePhoto,setProfilePhoto]=useState(null);
@@ -1638,6 +1708,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
       setWorkoutSessions(rows.map(r=>({
         id: r.id,
         rawDate: new Date(r.created_at),
+        routineId: r.routine_id,
         routineName: r.routine_name,
         routineColor: r.routine_color,
         durationMin: r.duration_min,
@@ -1655,11 +1726,19 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
     return()=>obs.disconnect();
   },[]);
 
-  /* Sube una foto de la galería del dispositivo, en vez de tomarla con la
-     cámara: lee su fecha real desde el EXIF cuando está disponible (si no,
-     usa el momento de la subida) y la usa para emparejar la foto con el
-     entrenamiento de ese mismo día en el historial. */
-  const handleUploadPhoto=useCallback(async (file)=>{
+  // Most recently logged session — used as the default date/routine in the
+  // upload confirm sheet ("preselecting the date/routine of the last routine").
+  const lastSession = useMemo(() => {
+    if (!workoutSessions.length) return null;
+    return workoutSessions.reduce((latest, s) => (!latest || s.rawDate > latest.rawDate) ? s : latest, null);
+  }, [workoutSessions]);
+
+  /* Paso 1: el usuario elige una foto de la galería. Le leemos el EXIF (si
+     lo trae) solo para tener el mejor default posible, pero SIEMPRE se
+     confirma a mano en el paso 2 — la fecha EXIF no se guarda directo. */
+  const handlePhotoInputChange=useCallback(async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ""; // allow picking the same file again later
     if(!file) return;
     setUploadingPhoto(true);
     try {
@@ -1667,24 +1746,32 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
         fileToSquareDataURL(file),
         readExifDate(file),
       ]);
-      const takenAt = exifDate || new Date();
-      const label = todayRoutine?.name || "Progreso";
-      const photo = makePhoto(Date.now(), label, fmtPhotoDate(takenAt), "Tú", null, null, "", dataURL, takenAt);
-      setPhotos(prev=>[photo, ...prev].sort((a,b)=> new Date(b.rawDate||0) - new Date(a.rawDate||0)));
-      persistNewPhoto({ ...photo, takenAt: takenAt.toISOString() });
-      fireToast(exifDate ? "¡Foto añadida con su fecha original!" : "¡Foto añadida!");
+      const defaultDate = exifDate || lastSession?.rawDate || new Date();
+      setUploadDate(toDateInputValue(defaultDate));
+      setUploadRoutineId(lastSession?.routineId || routines[0]?.id || null);
+      setPendingUpload({ dataURL });
     } catch (e) {
-      fireToast("No se pudo subir la foto");
+      fireToast("No se pudo leer la foto");
     } finally {
       setUploadingPhoto(false);
     }
-  },[todayRoutine]);
+  },[lastSession, routines]);
 
-  const handlePhotoInputChange=useCallback((e)=>{
-    const file = e.target.files && e.target.files[0];
-    e.target.value = ""; // allow picking the same file again later
-    if(file) handleUploadPhoto(file);
-  },[handleUploadPhoto]);
+  /* Paso 2: el usuario confirma (o ajusta) la fecha y la rutina, y recién
+     ahí se guarda y se cruza con el historial de entrenos de ese día. */
+  const confirmUploadPhoto=useCallback(()=>{
+    if(!pendingUpload || !uploadDate) return;
+    const routine = routines.find(r=>r.id===uploadRoutineId) || routines[0];
+    const takenAt = new Date(`${uploadDate}T12:00:00`); // noon: evita que el timezone corra la fecha un día
+    const label = routine?.name || "Progreso";
+    const photo = makePhoto(Date.now(), label, fmtPhotoDate(takenAt), "Tú", null, null, "", pendingUpload.dataURL, takenAt);
+    setPhotos(prev=>[photo, ...prev].sort((a,b)=> new Date(b.rawDate||0) - new Date(a.rawDate||0)));
+    persistNewPhoto({ ...photo, takenAt: takenAt.toISOString() });
+    fireToast("¡Foto añadida!");
+    setPendingUpload(null);
+  },[pendingUpload, uploadDate, uploadRoutineId, routines]);
+
+  const cancelUploadPhoto=useCallback(()=>{ setPendingUpload(null); },[]);
 
   const handleDeletePhoto=useCallback((photo)=>{
     haptic.medium();
@@ -1734,6 +1821,18 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
   return (
     <div style={{ flex:1,overflowY:"auto",background:C.bg,fontFamily:FONT,position:"relative" }}>
       <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoInputChange} style={{ display:"none" }}/>
+      {pendingUpload && (
+        <PhotoUploadModal
+          dataURL={pendingUpload.dataURL}
+          date={uploadDate}
+          onDateChange={setUploadDate}
+          routines={routines}
+          routineId={uploadRoutineId}
+          onRoutineChange={setUploadRoutineId}
+          onConfirm={confirmUploadPhoto}
+          onCancel={cancelUploadPhoto}
+        />
+      )}
       <Toast message={toastMsg} show={showToast}/>
 
       {/* Greeting */}
@@ -1854,7 +1953,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
                 <line x1="12" y1="3" x2="12" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             )}
-            {uploadingPhoto ? "Subiendo…" : "Subir foto"}
+            {uploadingPhoto ? "Leyendo…" : "Subir foto"}
           </button>
         </div>
         {photosLoading ? (
@@ -1891,7 +1990,7 @@ const HomeScreen = ({ onStartWorkout, routines, todayRoutine, onChangeTodayRouti
               <line x1="12" y1="3" x2="12" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           )}
-          {uploadingPhoto ? "Subiendo…" : "Subir foto"}
+          {uploadingPhoto ? "Leyendo…" : "Subir foto"}
         </button>
       </div>
     </div>
