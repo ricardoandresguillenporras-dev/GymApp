@@ -825,6 +825,21 @@ const ROUTINE_ART = {
   3: curlBenchArt,  // Día de Brazos — banco Scott + mancuernas
 };
 
+// Same 3 illustrations, but keyed by the "_routineEmoji"/zone tag instead of
+// a routine id — this is what preset exercise rows carry (both the 3
+// default-routine exercises and every MACHINE_CATALOG entry tag themselves
+// with one of these 5 zone strings), so every preset picker circle can show
+// real art instead of a 3-4 letter text abbreviation ("DÍA", "PIE", etc).
+// CORE and MULTI don't have a dedicated illustration, so they fall back to
+// the cable machine — the most visually generic of the 3.
+const PRESET_ART_BY_EMOJI = {
+  LEGS:  legPressArt,
+  CHEST: cableMachineArt,
+  CORE:  cableMachineArt,
+  ARMS:  curlBenchArt,
+  MULTI: cableMachineArt,
+};
+
 /* ── CATÁLOGO DE MÁQUINAS (numeración física del gym) ──
    Directorio completo de máquinas por número, independiente de las rutinas
    por defecto — se usa solo para nutrir la lista de presets al agregar un
@@ -2257,8 +2272,8 @@ const ReplaceExerciseSheet = ({ targetEx, routineColor, onReplace, onClose }) =>
               {filtered.map((ex,i)=>(
                 <div key={i} className="pressable" onClick={()=>handlePickPreset(ex)}
                   style={{ display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:16,background:C.s1,border:`1px solid ${C.s3}`,cursor:"pointer",marginBottom:8,transition:"background 0.15s" }}>
-                  <div style={{ width:36,height:36,borderRadius:"50%",background:`${ex._routineColor}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:ex._routineColor,flexShrink:0,letterSpacing:"-0.02em" }}>
-                    {ex._routineName.slice(0,4).toUpperCase()}
+                  <div style={{ width:36,height:36,borderRadius:"50%",background:`${ex._routineColor}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:ex._routineColor,flexShrink:0,letterSpacing:"-0.02em",overflow:"hidden" }}>
+                    {PRESET_ART_BY_EMOJI[ex._routineEmoji] ? <img src={PRESET_ART_BY_EMOJI[ex._routineEmoji]} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : ex._routineName.slice(0,4).toUpperCase()}
                   </div>
                   <div style={{ flex:1,minWidth:0 }}>
                     <div style={{ fontSize:13,fontWeight:700,color:C.t1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</div>
@@ -3152,8 +3167,8 @@ const SwapExerciseSheet = ({ targetEx, accent, onSwap, onClose }) => {
                 <div key={i} className="pressable" onClick={()=>pickPreset(ex)}
                   style={{ display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:18,background:C.s1,border:`1px solid ${C.s3}`,marginBottom:8,cursor:"pointer",transition:"background 0.15s, box-shadow 0.15s",boxShadow:"0 1px 4px rgba(0,0,0,0.03)" }}>
                   {/* Routine badge */}
-                  <div style={{ width:38,height:38,borderRadius:12,background:`${ex._routineColor}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:ex._routineColor,flexShrink:0,letterSpacing:"-0.01em",border:`1px solid ${ex._routineColor}25` }}>
-                    {ex._routineName.slice(0,4).toUpperCase()}
+                  <div style={{ width:38,height:38,borderRadius:12,background:`${ex._routineColor}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:ex._routineColor,flexShrink:0,letterSpacing:"-0.01em",border:`1px solid ${ex._routineColor}25`,overflow:"hidden" }}>
+                    {PRESET_ART_BY_EMOJI[ex._routineEmoji] ? <img src={PRESET_ART_BY_EMOJI[ex._routineEmoji]} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : ex._routineName.slice(0,4).toUpperCase()}
                   </div>
                   {/* Info */}
                   <div style={{ flex:1,minWidth:0 }}>
@@ -3782,7 +3797,9 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
           Rutinas
         </button>
         <div style={{ display:"flex",alignItems:"center",gap:14 }}>
-          <div style={{ width:48,height:48,borderRadius:16,flexShrink:0,background:`linear-gradient(135deg,${routine.color},${routine.dark})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,letterSpacing:"0.06em",textTransform:"uppercase",color:"#fff",boxShadow:`0 4px 14px ${routine.color}50` }}>{routine.name.slice(0,4)}</div>
+          <div style={{ width:48,height:48,borderRadius:16,flexShrink:0,background:`linear-gradient(135deg,${routine.color},${routine.dark})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,letterSpacing:"0.06em",textTransform:"uppercase",color:"#fff",boxShadow:`0 4px 14px ${routine.color}50`,overflow:"hidden" }}>
+            {ROUTINE_ART[routine.id] ? <img src={ROUTINE_ART[routine.id]} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : routine.name.slice(0,4)}
+          </div>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:22,fontWeight:900,color:C.t1,letterSpacing:"0.03em",fontFamily:FONT_DISPLAY,textTransform:"uppercase" }}>{routine.name}</div>
             <div style={{ display:"flex",alignItems:"center",gap:8,marginTop:4,flexWrap:"wrap" }}>
@@ -3857,7 +3874,7 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
                   {filteredPresets.map((ex,i)=>(
                     <div key={i} className="pressable" onClick={()=>addExercise(ex)}
                       style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:16,background:C.s2,border:`1px solid ${C.s3}`,cursor:"pointer",transition:"background 0.15s" }}>
-                      <div style={{ width:32,height:32,borderRadius:"50%",background:`${ex._routineColor}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:ex._routineColor,flexShrink:0 }}>{ex._routineName.slice(0,3).toUpperCase()}</div>
+                      <div style={{ width:32,height:32,borderRadius:"50%",background:`${ex._routineColor}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:ex._routineColor,flexShrink:0,overflow:"hidden" }}>{PRESET_ART_BY_EMOJI[ex._routineEmoji] ? <img src={PRESET_ART_BY_EMOJI[ex._routineEmoji]} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : ex._routineName.slice(0,3).toUpperCase()}</div>
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ fontSize:13,fontWeight:700,color:C.t1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</div>
                         <div style={{ fontSize:10,color:C.t3,marginTop:1 }}>{ex.muscle||""}{ex.machine!=null&&ex.machine>0?` · Máq. ${ex.machine}`:""} · {ex.sets}×{ex.reps} · {ex.weight}kg</div>
