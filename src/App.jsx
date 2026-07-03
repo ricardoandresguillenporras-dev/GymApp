@@ -193,15 +193,17 @@ const haptic = (() => {
   };
 })();
 
-/* ── EDIT GESTURES (double-tap-to-edit + long-press-to-drag) ──
-   One shared on/off setting (toggled from SideRail) for both gestures on
-   an exercise row, since they're the same underlying tradeoff: more
-   gesture vocabulary vs. fewer accidental hits.
+/* ── EDIT GESTURES (double-tap-to-edit a chip) ──
+   On/off setting (toggled from SideRail) for the double-tap guard on an
+   exercise row's editable chips (weight, reps, sets, machine).
      ON  (default): a chip needs two quick taps before it unlocks for
-         editing, and holding the row briefly starts a reorder drag.
+         editing — guards against an accidental value change from a
+         stray tap.
      OFF: a single tap on a chip unlocks it immediately — the whole card
-         is just directly clickable — and dragging is disabled outright,
-         so there's no competing gesture to misfire against a quick tap.
+         is meant to be directly clickable.
+   See dragGestures below for the separate reorder-drag toggle — they
+   used to be one combined setting, split apart so each does exactly one
+   thing.
    Plain closure + localStorage like `haptic`, but with a tiny pub/sub
    layer: SideRail (where it's toggled) and ExerciseRow (which needs to
    react live if toggled while a routine is open) are different mounted
@@ -224,6 +226,33 @@ const editGestures = (() => {
 const useEditGesturesEnabled = () => {
   const [enabled, setEnabledState] = useState(editGestures.isEnabled());
   useEffect(() => editGestures.subscribe(setEnabledState), []);
+  return enabled;
+};
+
+/* ── DRAG GESTURES (long-press-to-reorder) ──
+   Split out from editGestures — they used to share one switch, but that
+   meant turning off the double-tap-edit guard also silently killed
+   reordering as a side effect, which read as the edit switch "not
+   working" rather than as two settings sharing one control. Own toggle,
+   own key, same closure+pub/sub shape. */
+const dragGestures = (() => {
+  const DKEY = "wlt_drag_enabled";
+  let enabled = true;
+  try { const saved = localStorage.getItem(DKEY); if (saved !== null) enabled = saved === "1"; } catch {}
+  const listeners = new Set();
+  return {
+    isEnabled: () => enabled,
+    setEnabled: (v) => {
+      enabled = !!v;
+      try { localStorage.setItem(DKEY, enabled ? "1" : "0"); } catch {}
+      listeners.forEach(fn => fn(enabled));
+    },
+    subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
+  };
+})();
+const useDragEnabled = () => {
+  const [enabled, setEnabledState] = useState(dragGestures.isEnabled());
+  useEffect(() => dragGestures.subscribe(setEnabledState), []);
   return enabled;
 };
 
@@ -587,15 +616,17 @@ const TabBar = ({ active, onTab }) => {
    Minimal settings rail that stays fully hidden offscreen, leaving only a
    tiny orange arrow tab poking out from the screen edge. Tapping it slides
    in a slim panel with: a haptics on/off switch, an edit-gestures on/off
-   switch (double-tap-to-edit + long-press-to-drag vs. single-tap-for-
-   everything — see editGestures above ExerciseRow), a feedback bubble that
-   expands into a text box, and a "?" bubble that expands into that same
-   feedback's history (see feedbackStore.js — local-only, file-backed,
-   wiped automatically on uninstall). */
+   switch (double-tap-to-edit chips vs. single-tap — see editGestures),
+   a separate drag on/off switch (long-press-to-reorder — see
+   dragGestures), a feedback bubble that expands into a text box, and a
+   "?" bubble that expands into that same feedback's history (see
+   feedbackStore.js — local-only, file-backed, wiped automatically on
+   uninstall). */
 const SideRail = () => {
   const [open, setOpen] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(haptic.isEnabled());
   const editGesturesOn = useEditGesturesEnabled();
+  const dragOn = useDragEnabled();
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [sent, setSent] = useState(false);
@@ -613,6 +644,11 @@ const SideRail = () => {
 
   const toggleEditGestures = () => {
     editGestures.setEnabled(!editGesturesOn);
+    haptic.select();
+  };
+
+  const toggleDragGestures = () => {
+    dragGestures.setEnabled(!dragOn);
     haptic.select();
   };
 
@@ -725,7 +761,7 @@ const SideRail = () => {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.s1, border: `1px solid ${C.s3}`, borderRadius: 16, padding: "10px 12px" }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Edición doble toque</div>
-            <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>{editGesturesOn ? "Doble toque + arrastrar" : "Toque simple, sin arrastrar"}</div>
+            <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>{editGesturesOn ? "Doble toque para editar" : "Un toque para editar"}</div>
           </div>
           <button
             onClick={toggleEditGestures}
@@ -739,6 +775,31 @@ const SideRail = () => {
           >
             <div style={{
               position: "absolute", top: 2, left: editGesturesOn ? 20 : 2,
+              width: 20, height: 20, borderRadius: "50%", background: "#fff",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+              transition: "left 0.2s cubic-bezier(.34,1.56,.64,1)",
+            }}/>
+          </button>
+        </div>
+
+        {/* Drag-gestures switch */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.s1, border: `1px solid ${C.s3}`, borderRadius: 16, padding: "10px 12px" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Arrastrar para reordenar</div>
+            <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>{dragOn ? "Mantén presionado para mover" : "Desactivado"}</div>
+          </div>
+          <button
+            onClick={toggleDragGestures}
+            aria-label="Activar o desactivar arrastrar para reordenar"
+            style={{
+              width: 42, height: 24, borderRadius: 999, flexShrink: 0,
+              background: dragOn ? C.accent : C.s3,
+              border: "none", position: "relative", cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+          >
+            <div style={{
+              position: "absolute", top: 2, left: dragOn ? 20 : 2,
               width: 20, height: 20, borderRadius: "50%", background: "#fff",
               boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
               transition: "left 0.2s cubic-bezier(.34,1.56,.64,1)",
@@ -3304,6 +3365,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   const popTimer = useRef(null);
   const mountedRef = useRef(false);
   const editGesturesOn = useEditGesturesEnabled();
+  const dragOn = useDragEnabled();
 
   // The routine was finalized (either every exercise got checked off, or
   // the user tapped "Finalizar rutina" early) and this one was never
@@ -3319,8 +3381,8 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   // No visible handle anymore — holding still anywhere on the row for
   // LONG_PRESS_MS starts a reorder drag; a quick tap (the overwhelmingly
   // common case) falls straight through to handleToggle instead of racing
-  // against a drag gesture. Only active when editGesturesOn — off means
-  // "single tap does the obvious thing, no competing gestures at all".
+  // against a drag gesture. Gated on its own dragOn setting (independent
+  // from editGesturesOn — see dragGestures module).
   const LONG_PRESS_MS = 420;
   const MOVE_CANCEL_PX = 10;
   const pressTimer = useRef(null);
@@ -3332,7 +3394,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   };
 
   const handleRowPointerDown = (e) => {
-    if (skipped || finished || !editGesturesOn || !onDragStart) return;
+    if (skipped || finished || !dragOn || !onDragStart) return;
     pressStart.current = { x: e.clientX, y: e.clientY };
     dragArmed.current = false;
     clearPressTimer();
@@ -3420,16 +3482,33 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
     const unlocked = unlockedField === label;
     return (
       <div
-        style={{ flex:1,background:done?`${accent}10`:C.s2,borderRadius:20,padding:"8px 4px",textAlign:"center",transition:"background 0.3s, opacity 0.2s",opacity:unlocked?1:0.85,border:unlocked?`1px solid ${accent}50`:"1px solid transparent" }}
+        style={{
+          flex:1,position:"relative",borderRadius:20,padding:"8px 4px",textAlign:"center",
+          background:unlocked?`${accent}1c`:done?`${accent}10`:C.s2,
+          transition:"background 0.2s, opacity 0.2s, box-shadow 0.2s, transform 0.15s",
+          opacity:unlocked?1:0.85,
+          border:unlocked?`1.5px solid ${accent}`:"1px solid transparent",
+          boxShadow:unlocked?`0 0 0 4px ${accent}20`:"none",
+          transform:unlocked?"scale(1.03)":"scale(1)",
+        }}
+        onPointerDown={e=>e.stopPropagation()}
         onClick={e=>{e.stopPropagation();handleChipTap(label);}}>
-        <div style={{ fontSize:9,fontWeight:700,color:C.t3,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4 }}>{label}</div>
+        {unlocked && (
+          <div style={{ position:"absolute",top:-7,right:-6,width:18,height:18,borderRadius:"50%",background:accent,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.25)" }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
+              <path d="M12 20h9" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"/>
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        )}
+        <div style={{ fontSize:9,fontWeight:700,color:unlocked?accent:C.t3,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4 }}>{label}</div>
         <input
           type={type}
           value={value}
           readOnly={!unlocked}
           onChange={e=>{ if(!unlocked) return; const v=e.target.value; setter(v===""?"":Number(v)); }}
           onBlur={()=>setUnlockedField(f=>f===label?null:f)}
-          style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?accent:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlocked?"text":"pointer" }}
+          style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:unlocked?accent:done?accent:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlocked?"text":"pointer" }}
         />
       </div>
     );
@@ -3545,15 +3624,24 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
             <div style={{ display:"flex",alignItems:"center",gap:6,marginTop:6,flexWrap:"wrap" }}>
               {ex.muscle&&<Chip color={accent} style={{ fontSize:9,padding:"2px 8px" }}>{ex.muscle}</Chip>}
               {/* Editable machine chip */}
-              <div onClick={e=>{e.stopPropagation();handleChipTap("machine");}} style={{ display:"flex",alignItems:"center",gap:3,background:C.s2,borderRadius:16,padding:"3px 9px",border:unlockedField==="machine"?`1px solid ${accent}50`:"1px solid transparent" }}>
-                <span style={{ fontSize:9,fontWeight:700,color:C.t3 }}>Máq.</span>
+              <div
+                onPointerDown={e=>e.stopPropagation()}
+                onClick={e=>{e.stopPropagation();handleChipTap("machine");}}
+                style={{
+                  display:"flex",alignItems:"center",gap:3,borderRadius:16,padding:"3px 9px",
+                  background:unlockedField==="machine"?`${accent}1c`:C.s2,
+                  border:unlockedField==="machine"?`1.5px solid ${accent}`:"1px solid transparent",
+                  boxShadow:unlockedField==="machine"?`0 0 0 3px ${accent}20`:"none",
+                  transition:"background 0.2s, box-shadow 0.2s",
+                }}>
+                <span style={{ fontSize:9,fontWeight:700,color:unlockedField==="machine"?accent:C.t3 }}>Máq.</span>
                 <input
                   type="number"
                   value={machine}
                   readOnly={unlockedField!=="machine"}
                   onChange={e=>unlockedField==="machine" && setMachine(e.target.value)}
                   onBlur={()=>setUnlockedField(f=>f==="machine"?null:f)}
-                  style={{ width:28,background:"transparent",border:"none",outline:"none",fontSize:9,fontWeight:700,color:C.t2,fontFamily:"inherit",padding:0,MozAppearance:"textfield",textAlign:"left",cursor:unlockedField==="machine"?"text":"pointer" }}
+                  style={{ width:28,background:"transparent",border:"none",outline:"none",fontSize:9,fontWeight:700,color:unlockedField==="machine"?accent:C.t2,fontFamily:"inherit",padding:0,MozAppearance:"textfield",textAlign:"left",cursor:unlockedField==="machine"?"text":"pointer" }}
                 />
               </div>
             </div>
@@ -3562,6 +3650,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
           {!done && onSwap && (
             <button
               className="pressable"
+              onPointerDown={e=>e.stopPropagation()}
               onClick={e=>{ e.stopPropagation(); onSwap(); }}
               title="Cambiar ejercicio"
               style={{ width:34,height:34,borderRadius:"50%",background:`${accent}15`,border:`1px solid ${accent}30`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"background 0.2s" }}>
@@ -3578,9 +3667,15 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
         <div style={{ display:"flex",gap:10,marginBottom:14 }}>
           {editableChip("Series", sets, setSets)}
           {editableChip("Reps", reps, setReps)}
-          <div style={{ flex:2,display:"flex",position:"relative",borderRadius:20,overflow:"hidden",border:`1px solid ${done?`${accent}40`:C.s3}`,background:done?`${accent}10`:C.s2 }}>
+          <div onPointerDown={e=>e.stopPropagation()} style={{ flex:2,display:"flex",position:"relative",borderRadius:20,overflow:"hidden",border:`1px solid ${done?`${accent}40`:C.s3}`,background:done?`${accent}10`:C.s2 }}>
             <div
-              style={{ flex:1,padding:"8px 4px",textAlign:"center",borderRight:`1px solid ${done?`${accent}30`:C.s3}`,opacity:unlockedField==="Peso 1"?1:0.85,outline:unlockedField==="Peso 1"?`1.5px solid ${accent}`:"none" }}
+              style={{
+                flex:1,padding:"8px 4px",textAlign:"center",borderRight:`1px solid ${done?`${accent}30`:C.s3}`,
+                opacity:unlockedField==="Peso 1"?1:0.85,
+                background:unlockedField==="Peso 1"?`${accent}1c`:"transparent",
+                boxShadow:unlockedField==="Peso 1"?`inset 0 0 0 1.5px ${accent}`:"none",
+                transition:"background 0.2s, box-shadow 0.2s",
+              }}
               onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 1"); }}
             >
               <div style={{ fontSize:7.5,fontWeight:700,color:accent,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>Ricardo</div>
@@ -3597,7 +3692,13 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
             {/* Stylized + badge centered on the divider between both weights */}
             <div style={{ position:"absolute",left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:16,height:16,borderRadius:"50%",background:C.accent,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900,lineHeight:1,boxShadow:`0 1px 4px ${C.accent}60`,zIndex:1,pointerEvents:"none" }}>+</div>
             <div
-              style={{ flex:1,padding:"8px 4px",textAlign:"center",opacity:unlockedField==="Peso 2"?1:0.85,outline:unlockedField==="Peso 2"?`1.5px solid ${C.pink}`:"none" }}
+              style={{
+                flex:1,padding:"8px 4px",textAlign:"center",
+                opacity:unlockedField==="Peso 2"?1:0.85,
+                background:unlockedField==="Peso 2"?`${C.pink}1c`:"transparent",
+                boxShadow:unlockedField==="Peso 2"?`inset 0 0 0 1.5px ${C.pink}`:"none",
+                transition:"background 0.2s, box-shadow 0.2s",
+              }}
               onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 2"); }}
             >
               <div style={{ fontSize:7.5,fontWeight:700,color:C.pink,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>Arline</div>
@@ -3617,6 +3718,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
         {/* Confirm button */}
         <button
           className={`pressable${popping ? " anim-confirmPop" : ""}`}
+          onPointerDown={e=>e.stopPropagation()}
           onClick={e=>{e.stopPropagation();handleToggle();}}
           disabled={skipped}
           style={{
@@ -3923,8 +4025,8 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
             rowRef={setRowRef(ex._id)}
             onDragStart={(clientY)=>startDrag(ex._id, clientY)}
             style={ex._id===draggingId
-              ? { marginBottom:14, transform:`translateY(${dragY}px) scale(1.02)`, transition:"none", zIndex:30, position:"relative", boxShadow:"0 14px 34px rgba(0,0,0,0.18)", touchAction:"none" }
-              : { marginBottom:14 }}/>
+              ? { marginBottom:14, transform:`translateY(${dragY}px) scale(1.03)`, transition:"none", zIndex:30, position:"relative", boxShadow:`0 16px 38px ${routine.color}45`, border:`1.5px solid ${routine.color}`, touchAction:"none" }
+              : { marginBottom:14, opacity: draggingId ? 0.5 : 1, transition:"opacity 0.15s ease" }}/>
         ))}
 
         {/* ── Add exercise panel ── */}
