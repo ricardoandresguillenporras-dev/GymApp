@@ -193,6 +193,40 @@ const haptic = (() => {
   };
 })();
 
+/* ── EDIT GESTURES (double-tap-to-edit + long-press-to-drag) ──
+   One shared on/off setting (toggled from SideRail) for both gestures on
+   an exercise row, since they're the same underlying tradeoff: more
+   gesture vocabulary vs. fewer accidental hits.
+     ON  (default): a chip needs two quick taps before it unlocks for
+         editing, and holding the row briefly starts a reorder drag.
+     OFF: a single tap on a chip unlocks it immediately — the whole card
+         is just directly clickable — and dragging is disabled outright,
+         so there's no competing gesture to misfire against a quick tap.
+   Plain closure + localStorage like `haptic`, but with a tiny pub/sub
+   layer: SideRail (where it's toggled) and ExerciseRow (which needs to
+   react live if toggled while a routine is open) are different mounted
+   components at the same time, unlike haptic's fire-and-forget calls. */
+const editGestures = (() => {
+  const EKEY = "wlt_edit_gestures_enabled";
+  let enabled = true;
+  try { const saved = localStorage.getItem(EKEY); if (saved !== null) enabled = saved === "1"; } catch {}
+  const listeners = new Set();
+  return {
+    isEnabled: () => enabled,
+    setEnabled: (v) => {
+      enabled = !!v;
+      try { localStorage.setItem(EKEY, enabled ? "1" : "0"); } catch {}
+      listeners.forEach(fn => fn(enabled));
+    },
+    subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
+  };
+})();
+const useEditGesturesEnabled = () => {
+  const [enabled, setEnabledState] = useState(editGestures.isEnabled());
+  useEffect(() => editGestures.subscribe(setEnabledState), []);
+  return enabled;
+};
+
 /* ── KEEP-AWAKE ──
    Requests the Screen Wake Lock while the workout screen is mounted so the
    phone doesn't dim/lock mid-set (which used to visually "freeze" the timer
@@ -552,13 +586,16 @@ const TabBar = ({ active, onTab }) => {
 /* ── SIDE RAIL ──────────────────────────────────────────────────────────────
    Minimal settings rail that stays fully hidden offscreen, leaving only a
    tiny orange arrow tab poking out from the screen edge. Tapping it slides
-   in a slim panel with: a haptics on/off switch, a feedback bubble that
+   in a slim panel with: a haptics on/off switch, an edit-gestures on/off
+   switch (double-tap-to-edit + long-press-to-drag vs. single-tap-for-
+   everything — see editGestures above ExerciseRow), a feedback bubble that
    expands into a text box, and a "?" bubble that expands into that same
    feedback's history (see feedbackStore.js — local-only, file-backed,
    wiped automatically on uninstall). */
 const SideRail = () => {
   const [open, setOpen] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(haptic.isEnabled());
+  const editGesturesOn = useEditGesturesEnabled();
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [sent, setSent] = useState(false);
@@ -572,6 +609,11 @@ const SideRail = () => {
     haptic.setEnabled(next); // flip first so the confirming tick below still fires when turning back on
     setHapticsOn(next);
     if (next) haptic.select();
+  };
+
+  const toggleEditGestures = () => {
+    editGestures.setEnabled(!editGesturesOn);
+    haptic.select();
   };
 
   // Loaded lazily — no reason to touch the filesystem/localStorage until
@@ -672,6 +714,31 @@ const SideRail = () => {
           >
             <div style={{
               position: "absolute", top: 2, left: hapticsOn ? 20 : 2,
+              width: 20, height: 20, borderRadius: "50%", background: "#fff",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+              transition: "left 0.2s cubic-bezier(.34,1.56,.64,1)",
+            }}/>
+          </button>
+        </div>
+
+        {/* Edit-gestures switch */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.s1, border: `1px solid ${C.s3}`, borderRadius: 16, padding: "10px 12px" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Edición doble toque</div>
+            <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>{editGesturesOn ? "Doble toque + arrastrar" : "Toque simple, sin arrastrar"}</div>
+          </div>
+          <button
+            onClick={toggleEditGestures}
+            aria-label="Activar o desactivar edición con doble toque"
+            style={{
+              width: 42, height: 24, borderRadius: 999, flexShrink: 0,
+              background: editGesturesOn ? C.accent : C.s3,
+              border: "none", position: "relative", cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+          >
+            <div style={{
+              position: "absolute", top: 2, left: editGesturesOn ? 20 : 2,
               width: 20, height: 20, borderRadius: "50%", background: "#fff",
               boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
               transition: "left 0.2s cubic-bezier(.34,1.56,.64,1)",
@@ -3221,22 +3288,7 @@ const SwapExerciseSheet = ({ targetEx, accent, onSwap, onClose }) => {
 };
 
 /* ── EXERCISE ROW ── */
-/* Six-dot grip — a conventional drag handle, no bubble/background so it
-   reads as an edge affordance rather than an icon button. Sits flush at
-   the far-left edge of the row (see drag handle strip below), matching
-   the reorder-handle pattern used in most native list UIs. */
-const DragGripIcon = ({ size = 16, color = C.t3 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <circle cx="9"  cy="6"  r="1.7" fill={color}/>
-    <circle cx="15" cy="6"  r="1.7" fill={color}/>
-    <circle cx="9"  cy="12" r="1.7" fill={color}/>
-    <circle cx="15" cy="12" r="1.7" fill={color}/>
-    <circle cx="9"  cy="18" r="1.7" fill={color}/>
-    <circle cx="15" cy="18" r="1.7" fill={color}/>
-  </svg>
-);
-
-const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, rowRef, dragHandleProps, finished=false }) => {
+const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, rowRef, onDragStart, finished=false }) => {
   const [done, setDone] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [weight, setWeight] = useState(ex.weight ?? 0);
@@ -3251,6 +3303,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   const collapseTimer = useRef(null);
   const popTimer = useRef(null);
   const mountedRef = useRef(false);
+  const editGesturesOn = useEditGesturesEnabled();
 
   // The routine was finalized (either every exercise got checked off, or
   // the user tapped "Finalizar rutina" early) and this one was never
@@ -3262,6 +3315,43 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   // the exact moment "Finalizar" gets tapped doesn't linger open.
   useEffect(() => { if (skipped) setExpanded(false); }, [skipped]);
 
+  // ── Long-press-to-drag ──
+  // No visible handle anymore — holding still anywhere on the row for
+  // LONG_PRESS_MS starts a reorder drag; a quick tap (the overwhelmingly
+  // common case) falls straight through to handleToggle instead of racing
+  // against a drag gesture. Only active when editGesturesOn — off means
+  // "single tap does the obvious thing, no competing gestures at all".
+  const LONG_PRESS_MS = 420;
+  const MOVE_CANCEL_PX = 10;
+  const pressTimer = useRef(null);
+  const pressStart = useRef({ x: 0, y: 0 });
+  const dragArmed = useRef(false); // true once the long-press fires, so the trailing click gets swallowed
+
+  const clearPressTimer = () => {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+  };
+
+  const handleRowPointerDown = (e) => {
+    if (skipped || finished || !editGesturesOn || !onDragStart) return;
+    pressStart.current = { x: e.clientX, y: e.clientY };
+    dragArmed.current = false;
+    clearPressTimer();
+    pressTimer.current = setTimeout(() => {
+      pressTimer.current = null;
+      dragArmed.current = true;
+      haptic.medium();
+      onDragStart(e.clientY);
+    }, LONG_PRESS_MS);
+  };
+  const handleRowPointerMove = (e) => {
+    if (!pressTimer.current) return;
+    const dx = e.clientX - pressStart.current.x, dy = e.clientY - pressStart.current.y;
+    if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) clearPressTimer(); // real intent looked like a scroll/swipe, not a hold — let it through untouched
+  };
+  const handleRowPointerUp = () => clearPressTimer();
+
+  useEffect(() => () => clearPressTimer(), []);
+
   // Report live edits (weight, weight2, sets, reps, machine) up to the parent
   // so they're included when the workout session is saved to history.
   useEffect(() => {
@@ -3272,6 +3362,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
 
   const handleToggle = () => {
     if (finished) return; // routine's already wrapped up — nothing left to toggle
+    if (dragArmed.current) { dragArmed.current = false; return; } // swallow the click that follows a long-press drag
     const next = !done;
     setDone(next);
     onToggle && onToggle(next);
@@ -3293,11 +3384,20 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
     if (popTimer.current) clearTimeout(popTimer.current);
   }, []);
 
-  // Requires two quick taps (within 350ms) on a locked field before it
-  // unlocks for editing — guards against accidental value changes from a
-  // stray tap, without needing an awkward long-press.
+  // With editGesturesOn: requires two quick taps (within 350ms) on a locked
+  // field before it unlocks — guards against accidental value changes from
+  // a stray tap. With it off, a single tap unlocks immediately — the whole
+  // card is meant to be directly clickable, so the double-tap guard is
+  // exactly the friction that setting exists to remove.
   const handleChipTap = (label) => {
     if (unlockedField === label) return;
+    if (!editGesturesOn) {
+      haptic.medium();
+      setUnlockedField(label);
+      if (relockTimer.current) clearTimeout(relockTimer.current);
+      relockTimer.current = setTimeout(() => setUnlockedField(null), 4000);
+      return;
+    }
     if (tapTimers.current[label]) {
       clearTimeout(tapTimers.current[label]);
       tapTimers.current[label] = null;
@@ -3409,6 +3509,10 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
       ref={rowRef}
       className="anim-fadeUp pressable"
       onClick={skipped ? undefined : handleToggle}
+      onPointerDown={handleRowPointerDown}
+      onPointerMove={handleRowPointerMove}
+      onPointerUp={handleRowPointerUp}
+      onPointerCancel={handleRowPointerUp}
       style={{
         borderRadius:20,
         border:`1px solid ${done?`${accent}35`:C.s3}`,
@@ -3420,23 +3524,9 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
         opacity:skipped?0.55:1,
         filter:skipped?"grayscale(0.4)":"none",
         overflow:"hidden",
-        display:"flex",
-        alignItems:"stretch",
         ...style
       }}>
-      {/* Drag handle — far-left edge strip, spans the full row height so
-          it reads as a grab affordance rather than a floating button */}
-      {!done && !finished && dragHandleProps && (
-        <div
-          {...dragHandleProps}
-          className="pressable"
-          onClick={e=>e.stopPropagation()}
-          title="Arrastra para reordenar"
-          style={{ width:26,flexShrink:0,alignSelf:"stretch",display:"flex",alignItems:"center",justifyContent:"center",cursor:"grab",touchAction:"none",...dragHandleProps.style }}>
-          <DragGripIcon size={15} color={C.t3}/>
-        </div>
-      )}
-      <div style={{ flex:1,minWidth:0,padding:(!done&&dragHandleProps)?"18px 18px 18px 2px":"18px 18px" }}>
+      <div style={{ padding:"18px 18px" }}>
         {/* Header row */}
         <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:16 }}>
           {/* Index / check bubble */}
@@ -3578,7 +3668,7 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
     setSwappingId(null);
   };
 
-  // ── Drag-to-reorder (kettlebell handle) ──
+  // ── Drag-to-reorder (long-press anywhere on the row, see ExerciseRow) ──
   // Rows report their DOM node here so we can snapshot everyone's position
   // the moment a drag starts. All hit-testing during the drag compares
   // against that frozen snapshot (not live re-measured rects), which keeps
@@ -3831,9 +3921,9 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
             onUpdate={(patch)=>setExercises(prev=>prev.map(e=>e._id===ex._id?{...e,...patch}:e))}
             onSwap={()=>setSwappingId(ex._id)}
             rowRef={setRowRef(ex._id)}
-            dragHandleProps={{ onPointerDown:(e)=>{ e.stopPropagation(); e.target.setPointerCapture?.(e.pointerId); startDrag(ex._id, e.clientY); } }}
+            onDragStart={(clientY)=>startDrag(ex._id, clientY)}
             style={ex._id===draggingId
-              ? { marginBottom:14, transform:`translateY(${dragY}px) scale(1.02)`, transition:"none", zIndex:30, position:"relative", boxShadow:"0 14px 34px rgba(0,0,0,0.18)" }
+              ? { marginBottom:14, transform:`translateY(${dragY}px) scale(1.02)`, transition:"none", zIndex:30, position:"relative", boxShadow:"0 14px 34px rgba(0,0,0,0.18)", touchAction:"none" }
               : { marginBottom:14 }}/>
         ))}
 
