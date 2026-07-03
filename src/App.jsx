@@ -3485,17 +3485,16 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
         style={{
           flex:1,position:"relative",borderRadius:20,padding:"8px 4px",textAlign:"center",
           background:unlocked?`${accent}1c`:done?`${accent}10`:C.s2,
-          transition:"background 0.2s, opacity 0.2s, box-shadow 0.2s, transform 0.15s",
+          transition:"background 0.2s, opacity 0.2s, box-shadow 0.2s, border-color 0.2s",
           opacity:unlocked?1:0.85,
           border:unlocked?`1.5px solid ${accent}`:"1px solid transparent",
-          boxShadow:unlocked?`0 0 0 4px ${accent}20`:"none",
-          transform:unlocked?"scale(1.03)":"scale(1)",
+          boxShadow:unlocked?`0 0 0 3px ${accent}18`:"none",
         }}
         onPointerDown={e=>e.stopPropagation()}
         onClick={e=>{e.stopPropagation();handleChipTap(label);}}>
         {unlocked && (
-          <div style={{ position:"absolute",top:-7,right:-6,width:18,height:18,borderRadius:"50%",background:accent,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.25)" }}>
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
+          <div style={{ position:"absolute",top:-6,right:-5,width:16,height:16,borderRadius:"50%",background:accent,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.3)",zIndex:2 }}>
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none">
               <path d="M12 20h9" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"/>
               <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -3671,6 +3670,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
             <div
               style={{
                 flex:1,padding:"8px 4px",textAlign:"center",borderRight:`1px solid ${done?`${accent}30`:C.s3}`,
+                borderRadius:"19px 0 0 19px",
                 opacity:unlockedField==="Peso 1"?1:0.85,
                 background:unlockedField==="Peso 1"?`${accent}1c`:"transparent",
                 boxShadow:unlockedField==="Peso 1"?`inset 0 0 0 1.5px ${accent}`:"none",
@@ -3694,6 +3694,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
             <div
               style={{
                 flex:1,padding:"8px 4px",textAlign:"center",
+                borderRadius:"0 19px 19px 0",
                 opacity:unlockedField==="Peso 2"?1:0.85,
                 background:unlockedField==="Peso 2"?`${C.pink}1c`:"transparent",
                 boxShadow:unlockedField==="Peso 2"?`inset 0 0 0 1.5px ${C.pink}`:"none",
