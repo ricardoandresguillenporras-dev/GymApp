@@ -3350,7 +3350,7 @@ const SwapExerciseSheet = ({ targetEx, accent, onSwap, onClose }) => {
 };
 
 /* ── EXERCISE ROW ── */
-const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, rowRef, onDragStart, finished=false }) => {
+const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, rowRef, onDragStart, dragEndGuardRef, finished=false }) => {
   const [done, setDone] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [weight, setWeight] = useState(ex.weight ?? 0);
@@ -3420,7 +3420,8 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
 
   const handleToggle = () => {
     if (finished) return; // routine's already wrapped up — nothing left to toggle
-    if (dragArmed.current) { dragArmed.current = false; return; } // swallow the click that follows a long-press drag
+    if (dragArmed.current) { dragArmed.current = false; return; } // this row was the one being dragged
+    if (dragEndGuardRef && Date.now() - dragEndGuardRef.current < 300) return; // a drag (possibly of another row) just ended — swallow the trailing click regardless of where it lands
     const next = !done;
     setDone(next);
     onToggle && onToggle(next);
@@ -3785,6 +3786,12 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
   const [dragY, setDragY] = useState(0);
   const [dragOffsets, setDragOffsets] = useState({}); // id -> px, rows sliding out of the way
   const [dragMoved, setDragMoved] = useState(false);   // eased "pickup" vs. instant 1:1 tracking
+  // Timestamp of the last drag end. A drag that travels several rows can
+  // end with the pointer sitting over a DIFFERENT row than the one that
+  // started it — the browser's trailing click then fires on THAT row, not
+  // the dragged one, so a purely per-row "just dragged" flag wouldn't
+  // catch it. Every row checks this shared timestamp instead.
+  const dragEndGuardRef = useRef(0);
 
   // Persists a pure reorder (position only) back into the routine template
   // so it's already in this order the next time the routine is opened.
@@ -3854,6 +3861,7 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
     const info = dragInfo.current;
     dragInfo.current = null;
     dragMovedRef.current = false;
+    dragEndGuardRef.current = Date.now();
     setDraggingId(null);
     setDragY(0);
     setDragOffsets({});
@@ -4081,6 +4089,7 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
               onSwap={()=>setSwappingId(ex._id)}
               rowRef={setRowRef(ex._id)}
               onDragStart={(clientY)=>startDrag(ex._id, clientY)}
+              dragEndGuardRef={dragEndGuardRef}
               style={rowStyle}/>
           );
         })}
