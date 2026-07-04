@@ -3377,42 +3377,38 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   // the exact moment "Finalizar" gets tapped doesn't linger open.
   useEffect(() => { if (skipped) setExpanded(false); }, [skipped]);
 
-  // ── Long-press-to-drag ──
-  // No visible handle anymore — holding still anywhere on the row for
-  // LONG_PRESS_MS starts a reorder drag; a quick tap (the overwhelmingly
-  // common case) falls straight through to handleToggle instead of racing
-  // against a drag gesture. Gated on its own dragOn setting (independent
-  // from editGesturesOn — see dragGestures module).
-  const LONG_PRESS_MS = 380;
-  const MOVE_CANCEL_PX = 10;
-  const pressTimer = useRef(null);
+  // ── Instant drag-to-reorder (movement-based, not time-based) ──
+  // No visible handle anymore. A press that doesn't move is a tap
+  // (handleToggle fires normally on click); the moment a press moves past
+  // DRAG_THRESHOLD_PX, a reorder drag starts immediately — no waiting, no
+  // long-press delay. Gated on its own dragOn setting (independent from
+  // editGesturesOn — see dragGestures module).
+  const DRAG_THRESHOLD_PX = 8;
   const pressStart = useRef({ x: 0, y: 0 });
-  const dragArmed = useRef(false); // true once the long-press fires, so the trailing click gets swallowed
-
-  const clearPressTimer = () => {
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
-  };
+  const trackingDrag = useRef(false); // true while watching a press for threshold crossing
+  const dragArmed = useRef(false);    // true once the drag has actually started, so the trailing click gets swallowed
 
   const handleRowPointerDown = (e) => {
     if (skipped || finished || !dragOn || !onDragStart) return;
     pressStart.current = { x: e.clientX, y: e.clientY };
+    trackingDrag.current = true;
     dragArmed.current = false;
-    clearPressTimer();
-    pressTimer.current = setTimeout(() => {
-      pressTimer.current = null;
-      dragArmed.current = true;
-      haptic.medium();
-      onDragStart(e.clientY);
-    }, LONG_PRESS_MS);
   };
   const handleRowPointerMove = (e) => {
-    if (!pressTimer.current) return;
+    if (!trackingDrag.current) return;
     const dx = e.clientX - pressStart.current.x, dy = e.clientY - pressStart.current.y;
-    if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) clearPressTimer(); // real intent looked like a scroll/swipe, not a hold — let it through untouched
+    if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+      trackingDrag.current = false;
+      dragArmed.current = true;
+      haptic.medium();
+      // Anchor the drag at the ORIGINAL touch-down point (not the current,
+      // already-8px-away point) so the dragged row picks up tracking the
+      // finger's true total displacement with no snap/jump the instant it
+      // engages.
+      onDragStart(pressStart.current.y);
+    }
   };
-  const handleRowPointerUp = () => clearPressTimer();
-
-  useEffect(() => () => clearPressTimer(), []);
+  const handleRowPointerUp = () => { trackingDrag.current = false; };
 
   // Report live edits (weight, weight2, sets, reps, machine) up to the parent
   // so they're included when the workout session is saved to history.
@@ -3475,8 +3471,8 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
           boxShadow:unlocked?`0 0 0 3px ${accent}18`:"none",
           cursor:editGesturesOn?"pointer":"default",
         }}
-        onPointerDown={e=>e.stopPropagation()}
-        onClick={e=>{e.stopPropagation();handleChipTap(label);}}>
+        onPointerDown={e=>{ if(editGesturesOn) e.stopPropagation(); }}
+        onClick={e=>{ if(editGesturesOn){ e.stopPropagation(); handleChipTap(label); } }}>
         {unlocked && (
           <div style={{ position:"absolute",top:-6,right:-5,width:16,height:16,borderRadius:"50%",background:accent,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.3)",zIndex:2 }}>
             <svg width="8" height="8" viewBox="0 0 24 24" fill="none">
@@ -3609,8 +3605,8 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
               {ex.muscle&&<Chip color={accent} style={{ fontSize:9,padding:"2px 8px" }}>{ex.muscle}</Chip>}
               {/* Editable machine chip */}
               <div
-                onPointerDown={e=>e.stopPropagation()}
-                onClick={e=>{e.stopPropagation();handleChipTap("machine");}}
+                onPointerDown={e=>{ if(editGesturesOn) e.stopPropagation(); }}
+                onClick={e=>{ if(editGesturesOn){ e.stopPropagation(); handleChipTap("machine"); } }}
                 style={{
                   display:"flex",alignItems:"center",gap:3,borderRadius:16,padding:"3px 9px",
                   background:unlockedField==="machine"?`${accent}1c`:C.s2,
@@ -3652,7 +3648,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
         <div style={{ display:"flex",gap:10,marginBottom:14 }}>
           {editableChip("Series", sets, setSets)}
           {editableChip("Reps", reps, setReps)}
-          <div onPointerDown={e=>e.stopPropagation()} style={{ flex:2,display:"flex",position:"relative",borderRadius:20,overflow:"hidden",border:`1px solid ${done?`${accent}40`:C.s3}`,background:done?`${accent}10`:C.s2 }}>
+          <div onPointerDown={e=>{ if(editGesturesOn) e.stopPropagation(); }} style={{ flex:2,display:"flex",position:"relative",borderRadius:20,overflow:"hidden",border:`1px solid ${done?`${accent}40`:C.s3}`,background:done?`${accent}10`:C.s2 }}>
             <div
               style={{
                 flex:1,padding:"8px 4px",textAlign:"center",borderRight:`1px solid ${done?`${accent}30`:C.s3}`,
@@ -3662,7 +3658,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
                 boxShadow:unlockedField==="Peso 1"?`inset 0 0 0 1.5px ${accent}`:"none",
                 transition:"background 0.2s, box-shadow 0.2s",
               }}
-              onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 1"); }}
+              onClick={e=>{ if(editGesturesOn){ e.stopPropagation(); handleChipTap("Peso 1"); } }}
             >
               <div style={{ fontSize:7.5,fontWeight:700,color:accent,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>Ricardo</div>
               <input
@@ -3686,7 +3682,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
                 boxShadow:unlockedField==="Peso 2"?`inset 0 0 0 1.5px ${C.pink}`:"none",
                 transition:"background 0.2s, box-shadow 0.2s",
               }}
-              onClick={e=>{ e.stopPropagation(); handleChipTap("Peso 2"); }}
+              onClick={e=>{ if(editGesturesOn){ e.stopPropagation(); handleChipTap("Peso 2"); } }}
             >
               <div style={{ fontSize:7.5,fontWeight:700,color:C.pink,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>Arline</div>
               <input
