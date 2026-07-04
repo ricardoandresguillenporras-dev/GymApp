@@ -193,14 +193,15 @@ const haptic = (() => {
   };
 })();
 
-/* ── EDIT GESTURES (double-tap-to-edit a chip) ──
-   On/off setting (toggled from SideRail) for the double-tap guard on an
-   exercise row's editable chips (weight, reps, sets, machine).
-     ON  (default): a chip needs two quick taps before it unlocks for
-         editing — guards against an accidental value change from a
-         stray tap.
-     OFF: a single tap on a chip unlocks it immediately — the whole card
-         is meant to be directly clickable.
+/* ── EDIT GESTURES (allow editing a chip's value at all) ──
+   On/off setting (toggled from SideRail) for whether an exercise row's
+   editable chips (weight, reps, sets, machine) can be edited at all.
+     ON  (default): a single tap on a locked chip unlocks it for editing.
+     OFF: tapping a chip does nothing — value editing is disabled outright.
+   There used to be a third, double-tap-to-unlock mode in between these
+   two, but requiring two quick taps just to change a number never felt
+   like a real interaction — it's gone. The choice now is exactly what it
+   should be: can you edit values here, or not.
    See dragGestures below for the separate reorder-drag toggle — they
    used to be one combined setting, split apart so each does exactly one
    thing.
@@ -616,7 +617,7 @@ const TabBar = ({ active, onTab }) => {
    Minimal settings rail that stays fully hidden offscreen, leaving only a
    tiny orange arrow tab poking out from the screen edge. Tapping it slides
    in a slim panel with: a haptics on/off switch, an edit-gestures on/off
-   switch (double-tap-to-edit chips vs. single-tap — see editGestures),
+   switch (edit chip values or not — see editGestures),
    a separate drag on/off switch (long-press-to-reorder — see
    dragGestures), a feedback bubble that expands into a text box, and a
    "?" bubble that expands into that same feedback's history (see
@@ -760,8 +761,8 @@ const SideRail = () => {
         {/* Edit-gestures switch */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.s1, border: `1px solid ${C.s3}`, borderRadius: 16, padding: "10px 12px" }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Edición doble toque</div>
-            <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>{editGesturesOn ? "Doble toque para editar" : "Un toque para editar"}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.t1 }}>Edición de valores</div>
+            <div style={{ fontSize: 10, color: C.t3, marginTop: 1 }}>{editGesturesOn ? "Un toque para editar" : "Desactivada"}</div>
           </div>
           <button
             onClick={toggleEditGestures}
@@ -3359,7 +3360,6 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   const [machine, setMachine] = useState(ex.machine ?? "");
   const [unlockedField, setUnlockedField] = useState(null); // which chip label is currently editable
   const [popping, setPopping] = useState(false);
-  const tapTimers = useRef({});
   const relockTimer = useRef(null);
   const collapseTimer = useRef(null);
   const popTimer = useRef(null);
@@ -3383,7 +3383,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
   // common case) falls straight through to handleToggle instead of racing
   // against a drag gesture. Gated on its own dragOn setting (independent
   // from editGesturesOn — see dragGestures module).
-  const LONG_PRESS_MS = 420;
+  const LONG_PRESS_MS = 380;
   const MOVE_CANCEL_PX = 10;
   const pressTimer = useRef(null);
   const pressStart = useRef({ x: 0, y: 0 });
@@ -3446,35 +3446,19 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
     if (popTimer.current) clearTimeout(popTimer.current);
   }, []);
 
-  // With editGesturesOn: requires two quick taps (within 350ms) on a locked
-  // field before it unlocks — guards against accidental value changes from
-  // a stray tap. With it off, a single tap unlocks immediately — the whole
-  // card is meant to be directly clickable, so the double-tap guard is
-  // exactly the friction that setting exists to remove.
+  // editGesturesOn is a simple on/off now — no more double-tap step at all.
+  //   ON:  a single tap on a locked chip unlocks it for editing.
+  //   OFF: tapping a chip does nothing — value editing is disabled outright.
   const handleChipTap = (label) => {
+    if (!editGesturesOn) return;
     if (unlockedField === label) return;
-    if (!editGesturesOn) {
-      haptic.medium();
-      setUnlockedField(label);
-      if (relockTimer.current) clearTimeout(relockTimer.current);
-      relockTimer.current = setTimeout(() => setUnlockedField(null), 4000);
-      return;
-    }
-    if (tapTimers.current[label]) {
-      clearTimeout(tapTimers.current[label]);
-      tapTimers.current[label] = null;
-      haptic.medium();
-      setUnlockedField(label);
-      if (relockTimer.current) clearTimeout(relockTimer.current);
-      relockTimer.current = setTimeout(() => setUnlockedField(null), 4000);
-    } else {
-      haptic.light();
-      tapTimers.current[label] = setTimeout(() => { tapTimers.current[label] = null; }, 350);
-    }
+    haptic.medium();
+    setUnlockedField(label);
+    if (relockTimer.current) clearTimeout(relockTimer.current);
+    relockTimer.current = setTimeout(() => setUnlockedField(null), 4000);
   };
 
   useEffect(() => () => {
-    Object.values(tapTimers.current).forEach(t => t && clearTimeout(t));
     if (relockTimer.current) clearTimeout(relockTimer.current);
   }, []);
 
@@ -3486,9 +3470,10 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
           flex:1,position:"relative",borderRadius:20,padding:"8px 4px",textAlign:"center",
           background:unlocked?`${accent}1c`:done?`${accent}10`:C.s2,
           transition:"background 0.2s, opacity 0.2s, box-shadow 0.2s, border-color 0.2s",
-          opacity:unlocked?1:0.85,
+          opacity:unlocked?1:(editGesturesOn?0.85:0.6),
           border:unlocked?`1.5px solid ${accent}`:"1px solid transparent",
           boxShadow:unlocked?`0 0 0 3px ${accent}18`:"none",
+          cursor:editGesturesOn?"pointer":"default",
         }}
         onPointerDown={e=>e.stopPropagation()}
         onClick={e=>{e.stopPropagation();handleChipTap(label);}}>
@@ -3507,7 +3492,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
           readOnly={!unlocked}
           onChange={e=>{ if(!unlocked) return; const v=e.target.value; setter(v===""?"":Number(v)); }}
           onBlur={()=>setUnlockedField(f=>f===label?null:f)}
-          style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:unlocked?accent:done?accent:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlocked?"text":"pointer" }}
+          style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:unlocked?accent:done?accent:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlocked?"text":editGesturesOn?"pointer":"default" }}
         />
       </div>
     );
@@ -3632,6 +3617,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
                   border:unlockedField==="machine"?`1.5px solid ${accent}`:"1px solid transparent",
                   boxShadow:unlockedField==="machine"?`0 0 0 3px ${accent}20`:"none",
                   transition:"background 0.2s, box-shadow 0.2s",
+                  cursor:editGesturesOn?"pointer":"default",
                 }}>
                 <span style={{ fontSize:9,fontWeight:700,color:unlockedField==="machine"?accent:C.t3 }}>Máq.</span>
                 <input
@@ -3640,7 +3626,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
                   readOnly={unlockedField!=="machine"}
                   onChange={e=>unlockedField==="machine" && setMachine(e.target.value)}
                   onBlur={()=>setUnlockedField(f=>f==="machine"?null:f)}
-                  style={{ width:28,background:"transparent",border:"none",outline:"none",fontSize:9,fontWeight:700,color:unlockedField==="machine"?accent:C.t2,fontFamily:"inherit",padding:0,MozAppearance:"textfield",textAlign:"left",cursor:unlockedField==="machine"?"text":"pointer" }}
+                  style={{ width:28,background:"transparent",border:"none",outline:"none",fontSize:9,fontWeight:700,color:unlockedField==="machine"?accent:C.t2,fontFamily:"inherit",padding:0,MozAppearance:"textfield",textAlign:"left",cursor:unlockedField==="machine"?"text":editGesturesOn?"pointer":"default" }}
                 />
               </div>
             </div>
@@ -3685,7 +3671,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
                 readOnly={unlockedField!=="Peso 1"}
                 onChange={e=>{ if(unlockedField!=="Peso 1") return; const v=e.target.value; setWeight(v===""?"":Number(v)); }}
                 onBlur={()=>setUnlockedField(f=>f==="Peso 1"?null:f)}
-                style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?accent:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlockedField==="Peso 1"?"text":"pointer" }}
+                style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?accent:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlockedField==="Peso 1"?"text":editGesturesOn?"pointer":"default" }}
               />
               <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
             </div>
@@ -3709,7 +3695,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
                 readOnly={unlockedField!=="Peso 2"}
                 onChange={e=>{ if(unlockedField!=="Peso 2") return; const v=e.target.value; setWeight2(v===""?"":Number(v)); }}
                 onBlur={()=>setUnlockedField(f=>f==="Peso 2"?null:f)}
-                style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?C.pink:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlockedField==="Peso 2"?"text":"pointer" }}
+                style={{ width:"100%",background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:900,color:done?C.pink:C.t1,textAlign:"center",fontFamily:"inherit",padding:0,MozAppearance:"textfield",cursor:unlockedField==="Peso 2"?"text":editGesturesOn?"pointer":"default" }}
               />
               <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
             </div>
@@ -3772,20 +3758,37 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
   };
 
   // ── Drag-to-reorder (long-press anywhere on the row, see ExerciseRow) ──
-  // Rows report their DOM node here so we can snapshot everyone's position
-  // the moment a drag starts. All hit-testing during the drag compares
-  // against that frozen snapshot (not live re-measured rects), which keeps
-  // the math stable even as sibling rows reflow into their new slots.
+  // Rewritten from scratch — the previous version re-sorted the actual
+  // `exercises` array on every threshold crossing mid-drag, using a
+  // frozen DOM-rect snapshot to decide when to swap. Two compounding bugs
+  // came from that: (1) the snapshot never got updated after the first
+  // swap, so every later swap decision was made against stale positions,
+  // and (2) since the dragged row's own place in the array changed
+  // mid-drag, its flow position shifted by a row-height on every swap
+  // while the finger-tracking translateY kept accumulating on top of
+  // that — the card visibly drifted off the finger's actual position.
+  //
+  // This version never touches the real array until the finger lifts.
+  // During the drag we only ever apply CSS transforms: the dragged row
+  // follows the finger via translateY, and any row it has crossed slides
+  // out of the way by exactly one row-height to preview the drop slot.
+  // The target index is computed from positions captured once at drag
+  // start, so the math can't go stale no matter how far the drag travels.
+  const GAP = 14; // must match each row's marginBottom below
   const rowNodes = useRef({});
   const setRowRef = useCallback((id) => (node) => {
     if (node) rowNodes.current[id] = node;
     else delete rowNodes.current[id];
   }, []);
-  const dragInfo = useRef(null);   // { id, order:[ids], rects:{id:{top,height}}, currentIndex }
+  // { id, order:[ids in original order], heights:{id:px}, tops:{id:px}, draggedIndex, targetIndex }
+  const dragInfo = useRef(null);
+  const dragMovedRef = useRef(false);
   const rafId = useRef(null);
   const pendingDy = useRef(0);
   const [draggingId, setDraggingId] = useState(null);
   const [dragY, setDragY] = useState(0);
+  const [dragOffsets, setDragOffsets] = useState({}); // id -> px, rows sliding out of the way
+  const [dragMoved, setDragMoved] = useState(false);   // eased "pickup" vs. instant 1:1 tracking
 
   // Persists a pure reorder (position only) back into the routine template
   // so it's already in this order the next time the routine is opened.
@@ -3805,27 +3808,39 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
     if (!info) return;
     const dy = pendingDy.current;
     setDragY(dy);
+    if (!dragMovedRef.current) { dragMovedRef.current = true; setDragMoved(true); }
 
-    const draggedRect = info.rects[info.id];
-    const draggedCenter = draggedRect.top + draggedRect.height / 2 + dy;
+    const draggedHeight = info.heights[info.id];
+    const draggedCenter = info.tops[info.id] + dy + draggedHeight / 2;
 
-    let targetIndex = info.order.indexOf(info.id);
+    // Which ORIGINAL slot does the dragged item's center currently sit
+    // in? Purely a lookup against the fixed tops/heights from drag start
+    // — never re-measured, so this can't drift no matter how many slots
+    // get crossed.
+    let targetIndex = info.order.length - 1;
     for (let i = 0; i < info.order.length; i++) {
       const oid = info.order[i];
-      if (oid === info.id) continue;
-      const r = info.rects[oid];
-      if (draggedCenter > r.top && draggedCenter < r.top + r.height) { targetIndex = i; break; }
+      if (draggedCenter < info.tops[oid] + info.heights[oid]) { targetIndex = i; break; }
     }
 
-    if (targetIndex !== info.currentIndex) {
-      info.currentIndex = targetIndex;
-      const newOrderIds = info.order.filter(id => id !== info.id);
-      newOrderIds.splice(targetIndex, 0, info.id);
+    if (targetIndex !== info.targetIndex) {
+      info.targetIndex = targetIndex;
       haptic.light();
-      setExercises(prev => {
-        const byId = new Map(prev.map(e => [e._id, e]));
-        return newOrderIds.map(id => byId.get(id));
-      });
+      // Every row strictly between the dragged item's original slot and
+      // the new target slides out of the way by one dragged-row-height,
+      // in whichever direction the drag is currently passing it.
+      const shift = draggedHeight + GAP;
+      const offsets = {};
+      for (let i = 0; i < info.order.length; i++) {
+        if (i === info.draggedIndex) continue;
+        const oid = info.order[i];
+        if (info.draggedIndex < targetIndex && i > info.draggedIndex && i <= targetIndex) {
+          offsets[oid] = -shift;
+        } else if (info.draggedIndex > targetIndex && i < info.draggedIndex && i >= targetIndex) {
+          offsets[oid] = shift;
+        }
+      }
+      setDragOffsets(offsets);
     }
   }, []);
 
@@ -3840,24 +3855,50 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
     if (rafId.current) { cancelAnimationFrame(rafId.current); rafId.current = null; }
     window.removeEventListener("pointermove", handlePointerMove);
     window.removeEventListener("pointerup", handlePointerUp);
+    const info = dragInfo.current;
     dragInfo.current = null;
+    dragMovedRef.current = false;
     setDraggingId(null);
     setDragY(0);
+    setDragOffsets({});
+    setDragMoved(false);
     haptic.medium();
-    setExercises(current => { persistOrder(current); return current; });
+    // Commit the reorder exactly once, now that the finger has lifted —
+    // the array itself was never touched during the drag.
+    if (info && info.targetIndex !== info.draggedIndex) {
+      const newOrderIds = info.order.filter(oid => oid !== info.id);
+      newOrderIds.splice(info.targetIndex, 0, info.id);
+      setExercises(prev => {
+        const byId = new Map(prev.map(e => [e._id, e]));
+        const reordered = newOrderIds.map(oid => byId.get(oid)).filter(Boolean);
+        persistOrder(reordered);
+        return reordered;
+      });
+    }
   }, [handlePointerMove, persistOrder]);
 
   const startDrag = useCallback((id, clientY) => {
     const order = exercises.map(e => e._id);
-    const rects = {};
+    const draggedIndex = order.indexOf(id);
+    if (draggedIndex === -1) return;
+
+    const heights = {};
     order.forEach(oid => {
       const node = rowNodes.current[oid];
-      if (node) rects[oid] = node.getBoundingClientRect();
+      heights[oid] = node ? node.getBoundingClientRect().height : 90;
     });
-    if (!rects[id]) return;
-    dragInfo.current = { id, order, rects, startY: clientY, currentIndex: order.indexOf(id) };
+    // Cumulative top offset of each row's ORIGINAL slot, relative to the
+    // first row — fixed for the whole drag, so later math never goes stale.
+    const tops = {};
+    let acc = 0;
+    order.forEach(oid => { tops[oid] = acc; acc += heights[oid] + GAP; });
+
+    dragInfo.current = { id, order, heights, tops, draggedIndex, targetIndex: draggedIndex, startY: clientY };
+    dragMovedRef.current = false;
     setDraggingId(id);
     setDragY(0);
+    setDragOffsets({});
+    setDragMoved(false);
     haptic.medium();
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp, { once: true });
@@ -4018,17 +4059,35 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
 
       {/* List */}
       <div ref={listScrollRef} style={{ flex:1,overflowY:"auto",padding:"16px 20px 24px" }}>
-        {exercises.map((ex,i)=>(
-          <ExerciseRow key={ex._id} ex={ex} idx={i} accent={routine.color} finished={isComplete}
-            onToggle={(isDone)=>handleToggle(ex._id,isDone)}
-            onUpdate={(patch)=>setExercises(prev=>prev.map(e=>e._id===ex._id?{...e,...patch}:e))}
-            onSwap={()=>setSwappingId(ex._id)}
-            rowRef={setRowRef(ex._id)}
-            onDragStart={(clientY)=>startDrag(ex._id, clientY)}
-            style={ex._id===draggingId
-              ? { marginBottom:14, transform:`translateY(${dragY}px) scale(1.03)`, transition:"none", zIndex:30, position:"relative", boxShadow:`0 16px 38px ${routine.color}45`, border:`1.5px solid ${routine.color}`, touchAction:"none" }
-              : { marginBottom:14, opacity: draggingId ? 0.5 : 1, transition:"opacity 0.15s ease" }}/>
-        ))}
+        {exercises.map((ex,i)=>{
+          const isDragging = ex._id===draggingId;
+          const offset = dragOffsets[ex._id] || 0;
+          const rowStyle = isDragging
+            ? {
+                marginBottom:14,
+                transform:`translateY(${dragY}px) scale(1.03)`,
+                transition: dragMoved ? "none" : "transform 0.18s cubic-bezier(.2,.8,.2,1), box-shadow 0.2s ease, border-color 0.2s ease",
+                zIndex:30, position:"relative",
+                boxShadow:`0 16px 38px ${routine.color}45`,
+                border:`1.5px solid ${routine.color}`,
+                touchAction:"none",
+              }
+            : {
+                marginBottom:14,
+                transform: offset ? `translateY(${offset}px)` : "none",
+                transition: "transform 0.18s cubic-bezier(.2,.8,.2,1), opacity 0.15s ease",
+                opacity: draggingId ? 0.6 : 1,
+              };
+          return (
+            <ExerciseRow key={ex._id} ex={ex} idx={i} accent={routine.color} finished={isComplete}
+              onToggle={(isDone)=>handleToggle(ex._id,isDone)}
+              onUpdate={(patch)=>setExercises(prev=>prev.map(e=>e._id===ex._id?{...e,...patch}:e))}
+              onSwap={()=>setSwappingId(ex._id)}
+              rowRef={setRowRef(ex._id)}
+              onDragStart={(clientY)=>startDrag(ex._id, clientY)}
+              style={rowStyle}/>
+          );
+        })}
 
         {/* ── Add exercise panel ── */}
         {showAdd ? (
