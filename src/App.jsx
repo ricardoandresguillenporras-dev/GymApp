@@ -3350,7 +3350,7 @@ const SwapExerciseSheet = ({ targetEx, accent, onSwap, onClose }) => {
 };
 
 /* ── EXERCISE ROW ── */
-const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, rowRef, onDragStart, dragEndGuardRef, finished=false }) => {
+const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, rowRef, onDragStart, dragEndGuardRef, finished=false, profile, solo=false }) => {
   const [done, setDone] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [weight, setWeight] = useState(ex.weight ?? 0);
@@ -3556,7 +3556,11 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
         <div style={{ flex:1,minWidth:0 }}>
           <div style={{ fontSize:14,fontWeight:700,color:accent,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",textDecoration:"line-through",textDecorationColor:`${accent}50`,textDecorationThickness:1.5 }}>{ex.name}</div>
         </div>
-        <div style={{ fontSize:11,color:C.t3,fontWeight:600,flexShrink:0 }}>{sets}×{reps} · <span style={{color:accent}}>{weight}</span>/<span style={{color:C.pink}}>{weight2}</span>kg</div>
+        <div style={{ fontSize:11,color:C.t3,fontWeight:600,flexShrink:0 }}>
+          {sets}×{reps} · {solo
+            ? <span style={{color:accent}}>{weight}kg</span>
+            : <><span style={{color:accent}}>{weight}</span>/<span style={{color:C.pink}}>{weight2}</span>kg</>}
+        </div>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0,opacity:0.4 }}>
           <path d="M4 6L8 10L12 6" stroke={C.t3} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -3649,6 +3653,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
         <div style={{ display:"flex",gap:10,marginBottom:14 }}>
           {editableChip("Series", sets, setSets)}
           {editableChip("Reps", reps, setReps)}
+          {solo ? editableChip("Peso", weight, setWeight) : (
           <div onPointerDown={e=>{ if(editGesturesOn) e.stopPropagation(); }} style={{ flex:2,display:"flex",position:"relative",borderRadius:20,overflow:"hidden",border:`1px solid ${done?`${accent}40`:C.s3}`,background:done?`${accent}10`:C.s2 }}>
             <div
               style={{
@@ -3661,7 +3666,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
               }}
               onClick={e=>{ if(editGesturesOn){ e.stopPropagation(); handleChipTap("Peso 1"); } }}
             >
-              <div style={{ fontSize:7.5,fontWeight:700,color:accent,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>Ricardo</div>
+              <div style={{ fontSize:7.5,fontWeight:700,color:accent,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{profile?.name || "Yo"}</div>
               <input
                 type="number"
                 value={weight}
@@ -3685,7 +3690,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
               }}
               onClick={e=>{ if(editGesturesOn){ e.stopPropagation(); handleChipTap("Peso 2"); } }}
             >
-              <div style={{ fontSize:7.5,fontWeight:700,color:C.pink,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>Arline</div>
+              <div style={{ fontSize:7.5,fontWeight:700,color:C.pink,textTransform:"uppercase",letterSpacing:"0.02em",marginBottom:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{profile?.partner || "Pareja"}</div>
               <input
                 type="number"
                 value={weight2}
@@ -3697,6 +3702,7 @@ const ExerciseRow = ({ ex, idx, accent, onToggle, onUpdate, onSwap, style={}, ro
               <div style={{ fontSize:8,fontWeight:600,color:C.t3,marginTop:1 }}>kg</div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Confirm button */}
@@ -3733,7 +3739,7 @@ const fmtElapsed = (s) => {
   return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 };
 
-const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
+const ExerciseScreen = ({ routine, onBack, onUpdateRoutines, profile }) => {
   const [doneSet,setDoneSet]=useState(new Set());
   const [exercises,setExercises]=useState(routine.exercises.map((e,i)=>({ ...e, _id:`base-${i}` })));
   const [showAdd,setShowAdd]=useState(false);
@@ -4090,6 +4096,8 @@ const ExerciseScreen = ({ routine, onBack, onUpdateRoutines }) => {
               rowRef={setRowRef(ex._id)}
               onDragStart={(clientY)=>startDrag(ex._id, clientY)}
               dragEndGuardRef={dragEndGuardRef}
+              profile={profile}
+              solo={!isPartnerSession()}
               style={rowStyle}/>
           );
         })}
@@ -4413,7 +4421,21 @@ export default function App() {
   const [showPartnerManager, setShowPartnerManager] = useState(false);
   const [routines,setRoutines]=useState(DEFAULT_ROUTINES);
   const [todayRoutine,setTodayRoutine]=useState(DEFAULT_ROUTINES[0]);
-  const [profile,setProfile]=useState({ name:"Ricardo",partner:"Arline",emoji:"" });
+  const PROFILE_KEY = 'wlt_profile';
+  const [profile,setProfile]=useState(() => {
+    try {
+      const raw = localStorage.getItem(PROFILE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { name:"Ricardo", partner:"Arline", emoji:"" };
+  });
+  const saveProfile = (patch) => {
+    setProfile(prev => {
+      const next = { ...prev, ...patch };
+      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   // Load routines from Supabase on mount; keep DEFAULT_ROUTINES as fallback
   useEffect(()=>{
@@ -4609,7 +4631,7 @@ export default function App() {
     <div style={{ width:"100vw",height:"100dvh",background:C.bg,display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:FONT,paddingTop:"env(safe-area-inset-top,0px)" }}>
 
       {showSplash && <PartnerSplash onDismiss={handleSplashDismiss} />}
-      {showPartnerManager && <PartnerCodeManager onClose={()=>setShowPartnerManager(false)} />}
+      {showPartnerManager && <PartnerCodeManager onClose={()=>setShowPartnerManager(false)} profile={profile} onSaveProfile={saveProfile} />}
       <SideRail />
 
       {/* ── Root-level modals — outside SwipeTabContainer so fixed positioning is never clipped ── */}
@@ -4642,7 +4664,7 @@ export default function App() {
 
       <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column" }}>
         {showExercise ? (
-          <ExerciseScreen routine={activeRoutine} onBack={goBack} onUpdateRoutines={handleUpdateRoutines}/>
+          <ExerciseScreen routine={activeRoutine} onBack={goBack} onUpdateRoutines={handleUpdateRoutines} profile={profile}/>
         ) : (
           <SwipeTabContainer tab={tab} onTabChange={goTab}>
             <div style={{ width:`${TAB_W}%`, height:"100%", flexShrink:0, overflow:"hidden", display:"flex", flexDirection:"column" }}>

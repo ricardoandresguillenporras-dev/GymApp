@@ -423,12 +423,14 @@ export function PartnerSplash({ onDismiss }) {
 // Usage:
 //   import { PartnerCodeManager } from './PartnerSplash';
 //   {showManager && <PartnerCodeManager onClose={() => setShowManager(false)} />}
-export function PartnerCodeManager({ onClose }) {
+export function PartnerCodeManager({ onClose, profile, onSaveProfile }) {
   const [step, setStep] = useState('view');  // 'view' | 'join' | 'create'
   const [code, setCode] = useState('');
   const [joinErr, setJoinErr] = useState('');
   const [copied, setCopied] = useState(false);
   const [newCode, setNewCode] = useState(null); // code freshly generated this session
+  const [name, setName] = useState(profile?.name || '');
+  const [partnerName, setPartnerName] = useState(profile?.partner || '');
   const inputRef = useRef(null);
 
   const partnerActive = isPartnerSession();
@@ -567,6 +569,37 @@ export function PartnerCodeManager({ onClose }) {
                 {partnerActive
                   ? 'Estás en una sesión compartida — cualquiera con este código ve el mismo gym.'
                   : 'Estás entrenando solo. Crea o ingresa un código para compartir tu progreso.'}
+              </div>
+
+              {/* Nombres — alimentan las etiquetas de peso durante el entrenamiento
+                  (ver ExerciseRow en App.jsx: Peso 1 = profile.name, Peso 2 = profile.partner) */}
+              <div style={{ background: C.s1, border: `1px solid ${C.s3}`, borderRadius: 18, padding: '14px 16px', marginBottom: 16, textAlign: 'left' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                  Nombres
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>Tu nombre</div>
+                  <input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    onBlur={() => onSaveProfile?.({ name: name.trim() || 'Yo' })}
+                    placeholder="Tu nombre"
+                    style={{ width: '100%', boxSizing: 'border-box', background: C.bg, border: `1px solid ${C.s3}`, borderRadius: 14, padding: '10px 14px', fontSize: 14, fontWeight: 700, color: C.t1, fontFamily: FONT, outline: 'none' }}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>Nombre de tu pareja</div>
+                  <input
+                    value={partnerName}
+                    onChange={e => setPartnerName(e.target.value)}
+                    onBlur={() => onSaveProfile?.({ partner: partnerName.trim() || 'Pareja' })}
+                    placeholder="Nombre de tu pareja"
+                    style={{ width: '100%', boxSizing: 'border-box', background: C.bg, border: `1px solid ${C.s3}`, borderRadius: 14, padding: '10px 14px', fontSize: 14, fontWeight: 700, color: C.t1, fontFamily: FONT, outline: 'none' }}
+                  />
+                </div>
+                <div style={{ fontSize: 10.5, color: C.t3, marginTop: 8, lineHeight: 1.4 }}>
+                  Así se llaman los dos campos de peso durante el entrenamiento{!partnerActive ? ' — solo se muestran cuando entrenás en una sesión compartida' : ''}.
+                </div>
               </div>
 
               <div style={{
