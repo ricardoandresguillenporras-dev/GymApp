@@ -163,7 +163,7 @@ const haptic = (() => {
 
   const HKEY = "wlt_haptics_enabled";
   let enabled = (() => {
-    try { return localStorage.getItem(HKEY) !== "0"; } catch { return true; }
+    try { return localStorage.getItem(HKEY) === "1"; } catch { return false; }
   })();
 
   const load = () =>
@@ -211,7 +211,7 @@ const haptic = (() => {
    components at the same time, unlike haptic's fire-and-forget calls. */
 const editGestures = (() => {
   const EKEY = "wlt_edit_gestures_enabled";
-  let enabled = true;
+  let enabled = false;
   try { const saved = localStorage.getItem(EKEY); if (saved !== null) enabled = saved === "1"; } catch {}
   const listeners = new Set();
   return {
@@ -238,7 +238,7 @@ const useEditGesturesEnabled = () => {
    own key, same closure+pub/sub shape. */
 const dragGestures = (() => {
   const DKEY = "wlt_drag_enabled";
-  let enabled = true;
+  let enabled = false;
   try { const saved = localStorage.getItem(DKEY); if (saved !== null) enabled = saved === "1"; } catch {}
   const listeners = new Set();
   return {
