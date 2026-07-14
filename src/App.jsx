@@ -910,36 +910,53 @@ const ROUTINE_COLOR_PALETTE = [
 
 const DEFAULT_ROUTINES = [
   {
+    // Compounds first while fresh (sentadilla/prensa), then unilateral/
+    // isolation work, glute activation, and calves last — calves get the
+    // highest reps + most sets since they're endurance-fiber dominant and
+    // respond poorly to low-rep work.
     id:1, name:"Día de Piernas", sub:"Cuádriceps · Isquios · Glúteos · Gemelos",
-    emoji:"LEGS", color:C.accent, dark:C.accentD, duration:50, difficulty:3,
+    emoji:"LEGS", color:C.accent, dark:C.accentD, duration:60, difficulty:4,
     exercises:[
-      { name:"Legcurl",               machine:10, sets:3, reps:12, weight:45, rest:75, muscle:"Isquios"    },
-      { name:"Extensión de piernas",   machine:2,  sets:3, reps:12, weight:59, rest:75, muscle:"Cuádriceps" },
-      { name:"Hip abductor",          machine:3,  sets:3, reps:12, weight:77, rest:60, muscle:"Glúteos"    },
-      { name:"Abductor",              machine:4,  sets:3, reps:12, weight:77, rest:60, muscle:"Glúteos"    },
-      { name:"Leg press",             machine:1,  sets:3, reps:12, weight:90, rest:90, muscle:"Cuádriceps" },
-      { name:"Sentadilla Asistida",   machine:0,  sets:3, reps:12, weight:20, rest:90, muscle:"Piernas"    },
-      { name:"Pantorrilla",           machine:0,  sets:3, reps:12, weight:20, rest:45, muscle:"Gemelos"    },
+      { name:"Sentadilla Asistida",   machine:0,  sets:4, reps:10, weight:20, rest:90, muscle:"Cuádriceps/Glúteos" },
+      { name:"Leg press",             machine:1,  sets:4, reps:10, weight:95, rest:90, muscle:"Cuádriceps" },
+      { name:"Extensión de piernas",   machine:2,  sets:3, reps:12, weight:59, rest:60, muscle:"Cuádriceps" },
+      { name:"Legcurl",               machine:10, sets:4, reps:12, weight:45, rest:60, muscle:"Isquiotibiales" },
+      { name:"Hip abductor",          machine:3,  sets:3, reps:15, weight:77, rest:45, muscle:"Glúteo medio"  },
+      { name:"Abductor",              machine:4,  sets:3, reps:15, weight:77, rest:45, muscle:"Aductores"     },
+      { name:"Pantorrilla",           machine:0,  sets:4, reps:15, weight:20, rest:45, muscle:"Gemelos"       },
     ],
   },
   {
-    id:2, name:"Día de Pecho", sub:"Pecho · Deltoides · Core",
-    emoji:"CHEST", color:C.pink, dark:C.pinkD, duration:45, difficulty:3,
+    // Rebuilt as a real push day — the old version only had 2 chest
+    // exercises and spent the rest of the session on core/lumbar, which
+    // doesn't drive chest growth. Now: chest compound → incline (upper
+    // chest, easy to neglect) → fly isolation → shoulders → triceps as
+    // the pushing synergist, all in the 8-12 hypertrophy range.
+    id:2, name:"Día de Pecho", sub:"Pecho · Hombros · Tríceps",
+    emoji:"CHEST", color:C.pink, dark:C.pinkD, duration:55, difficulty:4,
     exercises:[
-      { name:"Chest press",           machine:20, sets:3, reps:12, weight:45, rest:90, muscle:"Pecho"          },
-      { name:"Pec Fly rear delta",    machine:26, sets:3, reps:12, weight:36, rest:60, muscle:"Pecho/Deltoides" },
-      { name:"Tronco",                machine:30, sets:3, reps:12, weight:63, rest:60, muscle:"Core"           },
-      { name:"Tronco",                machine:34, sets:3, reps:12, weight:54, rest:60, muscle:"Core"           },
-      { name:"Abs",                   machine:40, sets:3, reps:12, weight:81, rest:45, muscle:"Abdominales"    },
-      { name:"Lumbar",                machine:44, sets:3, reps:12, weight:77, rest:45, muscle:"Lumbar"         },
+      { name:"Chest press",              machine:20, sets:4, reps:10, weight:45, rest:90, muscle:"Pectoral"          },
+      { name:"Press inclinado",          machine:0,  sets:3, reps:10, weight:30, rest:75, muscle:"Pectoral superior" },
+      { name:"Pec Fly rear delta",       machine:26, sets:3, reps:12, weight:36, rest:60, muscle:"Pectoral/Deltoides posterior" },
+      { name:"Aperturas en polea",       machine:0,  sets:3, reps:12, weight:15, rest:60, muscle:"Pectoral"          },
+      { name:"Press de hombros",         machine:0,  sets:3, reps:10, weight:20, rest:75, muscle:"Deltoides"         },
+      { name:"Extensión de tríceps",     machine:0,  sets:3, reps:12, weight:20, rest:60, muscle:"Tríceps"           },
     ],
   },
   {
-    id:3, name:"Día de Brazos", sub:"Brazos · Peso libre",
-    emoji:"ARMS", color:C.accentL, dark:C.accent, duration:25, difficulty:2,
+    // The old version was 2 exercises and 25 minutes — nowhere near enough
+    // volume for arm growth. Now split evenly between biceps and triceps,
+    // machine compound-ish moves first (heavier, more rest), free-weight
+    // isolation finishers last (lighter, higher rep, shorter rest).
+    id:3, name:"Día de Brazos", sub:"Bíceps · Tríceps",
+    emoji:"ARMS", color:C.accentL, dark:C.accent, duration:45, difficulty:3,
     exercises:[
-      { name:"Brazos",                machine:52, sets:3, reps:12, weight:72, rest:60, muscle:"Brazos" },
-      { name:"Brazos Peso Libre",     machine:0,  sets:3, reps:12, weight:20, rest:60, muscle:"Brazos" },
+      { name:"Curl de Bíceps",              machine:52, sets:4, reps:10, weight:72, rest:60, muscle:"Bíceps"  },
+      { name:"Extensión de Tríceps",        machine:51, sets:4, reps:10, weight:40, rest:60, muscle:"Tríceps" },
+      { name:"Curl con Mancuernas",         machine:0,  sets:3, reps:12, weight:12, rest:60, muscle:"Bíceps"  },
+      { name:"Fondos / Press Francés",      machine:0,  sets:3, reps:12, weight:15, rest:60, muscle:"Tríceps" },
+      { name:"Curl Martillo",               machine:0,  sets:3, reps:12, weight:12, rest:45, muscle:"Bíceps/Braquial" },
+      { name:"Extensión de Tríceps en Polea", machine:0, sets:3, reps:12, weight:20, rest:45, muscle:"Tríceps" },
     ],
   },
 ];
